@@ -27,7 +27,7 @@ cd v0-financial-toro-dashboard-2-main
 # Instalar dependencias
 npm install
 
-# Levantar servidor de desarrollo (en http://localhost:3001)
+# Levantar servidor de desarrollo (en http://localhost:4400)
 npm run dev
 
 # Construir para producción
