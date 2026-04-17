@@ -87,6 +87,24 @@ minos-v2/
 - Importar TODOS los modelos antes de `Base.metadata.create_all()` aunque no se usen directamente — si falta uno, la tabla no existe
 - Fixture chain: `db_engine (StaticPool)` → `client` + `db_session` — ambos deben compartir el mismo engine
 - FastAPI lifespan: usar `@asynccontextmanager` + `lifespan=` en `FastAPI(...)` — `@app.on_event` está deprecado
+- `datetime.utcnow()` deprecado en Python 3.12 — usar `datetime.now(timezone.utc)` siempre
+- Fixtures compartidos en `tests/conftest.py` con helpers: `make_source`, `make_portfolio`, `make_asset`, `make_position`
+
+---
+
+## Git / PR Workflow
+
+- Cada BN → rama propia (`claude/minos-bn<NNN>`) + PR → merge directo via `gh pr merge --merge --delete-branch`
+- No commitear directo a main — siempre PR
+- Si remote diverge: `git pull --rebase && git push`
+
+---
+
+## Market Data
+
+- yfinance aprobado (`yfinance>=0.2.54`) — acciones argentinas usan sufijo `.BA` (ej: `GGAL.BA`, `YPFD.BA`)
+- Mock en tests: patchear `src.services.market_data.yf.Ticker` (no `yfinance.Ticker`)
+- `MarketDataService._cache.clear()` en fixture `autouse=True` antes/después de cada test
 
 ---
 
@@ -126,4 +144,4 @@ Ver `minos-prime/MINOS_BN_BREAKDOWN.md` para el estado completo.
 
 **Total: 92 tests passing**
 
-Branch activo: `claude/minos-bn001`
+Branch activo: `main` (Track A + B mergeados) — próximo: `claude/minos-bn009` (Track C) o `claude/minos-bn013` (Track D)

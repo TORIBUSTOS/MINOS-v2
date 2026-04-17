@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>MINOS PRIME — UI Playground</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0b0b18;
+  --surface:  #11112a;
+  --card:     #181830;
+  --card2:    #1e1e3a;
+  --border:   #2a2a50;
+  --text:     #ddddf5;
+  --muted:    #7878a8;
+  --accent:   #6366f1;
+  --accent2:  #818cf8;
+  --buy:      #22c55e;
+  --hold:     #f59e0b;
+  --sell:     #ef4444;
+  --ars:      #38bdf8;
+  --usd:      #4ade80;
+  --gap: 16px;
+}
+
+body { display: flex; height: 100vh; font-family: system-ui, sans-serif;
+  background: #080814; color: var(--text); overflow: hidden; }
+
+/* ── Controls ── */
+.ctrl { width: 260px; min-width: 260px; background: #0e0e22; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow-y: auto; }
+
+.ctrl-header { padding: 18px 16px 12px; border-bottom: 1px solid var(--border); }
+.ctrl-header h2 { font-size: 13px; font-weight: 700; color: var(--accent2); letter-spacing: .08em; text-transform: uppercase; }
+.ctrl-header p  { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+.ctrl-section { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.ctrl-section label { display: block; font-size: 10px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+
+.btn-group { display: flex; gap: 4px; flex-wrap: wrap; }
+.btn-group button { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--border);
+  background: var(--card); color: var(--muted); border-radius: 6px; font-size: 11px;
+  cursor: pointer; transition: all .15s; white-space: nowrap; }
+.btn-group button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-group button:hover:not(.active) { border-color: var(--accent); color: var(--text); }
+
+.toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.toggle-row span { font-size: 12px; color: var(--text); }
+.toggle { width: 36px; height: 20px; background: var(--border); border-radius: 10px;
+  cursor: pointer; position: relative; transition: background .2s; border: none; }
+.toggle.on { background: var(--accent); }
+.toggle::after { content: ''; width: 14px; height: 14px; background: #fff; border-radius: 50%;
+  position: absolute; top: 3px; left: 3px; transition: left .2s; }
+.toggle.on::after { left: 19px; }
+
+input[type=range] { width: 100%; accent-color: var(--accent); }
+
+/* Presets */
+.preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.preset-btn { padding: 6px 8px; border: 1px solid var(--border); background: var(--card);
+  color: var(--muted); border-radius: 6px; font-size: 10px; cursor: pointer;
+  transition: all .15s; text-align: center; }
+.preset-btn:hover { border-color: var(--accent); color: var(--text); }
+
+/* Prompt */
+.prompt-box { margin-top: auto; padding: 14px 16px; border-top: 1px solid var(--border); }
+.prompt-box label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+  letter-spacing: .08em; display: block; margin-bottom: 6px; }
+.prompt-text { width: 100%; min-height: 80px; background: var(--card); border: 1px solid var(--border);
+  color: var(--text); border-radius: 6px; padding: 8px; font-size: 11px; resize: vertical;
+  font-family: monospace; line-height: 1.5; }
+.copy-btn { margin-top: 6px; width: 100%; padding: 7px; background: var(--accent);
+  border: none; color: #fff; border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background .15s; }
+.copy-btn:hover { background: var(--accent2); }
+
+/* ── Preview ── */
+.preview { flex: 1; overflow: hidden; display: flex; align-items: stretch; }
+
+.app-frame { width: 100%; display: flex; background: var(--bg); overflow: hidden; }
+
+/* Sidebar */
+.app-sidebar { width: 52px; background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px; }
+.app-sidebar .logo { font-size: 18px; font-weight: 900; color: var(--accent); margin-bottom: 12px; letter-spacing: -1px; }
+.nav-item { width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center;
+  justify-content: center; cursor: pointer; transition: all .15s; color: var(--muted); font-size: 16px; }
+.nav-item:hover { background: var(--card); color: var(--text); }
+.nav-item.active { background: var(--accent); color: #fff; }
+
+/* Main content */
+.app-content { flex: 1; overflow-y: auto; padding: var(--gap); display: flex; flex-direction: column; gap: var(--gap); }
+
+.page-header { display: flex; align-items: center; justify-content: space-between; }
+.page-header h1 { font-size: 20px; font-weight: 700; }
+.page-header .date { font-size: 12px; color: var(--muted); }
+
+/* Stats row */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.stat-card .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+.stat-card .value { font-size: 18px; font-weight: 700; }
+.stat-card .sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.stat-card .delta { font-size: 11px; font-weight: 600; }
+.delta.up { color: var(--buy); }
+.delta.down { color: var(--sell); }
+
+/* Status banner */
+.status-banner { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+  display: flex; align-items: flex-start; gap: 14px; }
+.status-badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.status-badge.expansión { background: #16532820; color: var(--buy); border: 1px solid #22c55e40; }
+.status-badge.neutral   { background: #78340f20; color: var(--hold); border: 1px solid #f59e0b40; }
+.status-badge.riesgo    { background: #7f1d1d20; color: var(--sell); border: 1px solid #ef444440; }
+.status-content .action { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.status-content .insights { display: flex; flex-direction: column; gap: 3px; }
+.insight-item { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.insight-item::before { content: '›'; color: var(--accent); font-weight: 700; }
+
+/* Charts row */
+.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.chart-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+  letter-spacing: .06em; margin-bottom: 12px; }
+
+/* Donut */
+.donut-wrap { display: flex; gap: 14px; align-items: center; }
+canvas { flex-shrink: 0; }
+.legend { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.legend-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.legend-pct  { color: var(--muted); font-size: 10px; }
+
+/* Horizontal bars */
+.hbar-list { display: flex; flex-direction: column; gap: 8px; }
+.hbar-row { }
+.hbar-meta { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
+.hbar-meta .name  { color: var(--text); }
+.hbar-meta .val   { color: var(--muted); }
+.hbar-track { height: 6px; background: var(--card2); border-radius: 3px; overflow: hidden; }
+.hbar-fill  { height: 100%; border-radius: 3px; transition: width .3s; }
+
+/* Currency exposure */
+.currency-bar { height: 20px; border-radius: 6px; overflow: hidden; display: flex; margin-bottom: 8px; }
+.currency-seg { display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;
+  color: rgba(0,0,0,.7); transition: width .3s; }
+.currency-legend { display: flex; gap: 14px; }
+.cur-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.cur-dot  { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Table */
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th { text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 600;
+  color: var(--muted); text-transform: uppercase; letter-spacing: .06em;
+  border-bottom: 1px solid var(--border); }
+.data-table td { padding: 9px 10px; border-bottom: 1px solid var(--border)30; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--card2); }
+
+.signal-badge { padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; }
+.signal-badge.BUY  { background: #16532820; color: var(--buy); border: 1px solid #22c55e40; }
+.signal-badge.HOLD { background: #78340f20; color: var(--hold); border: 1px solid #f59e0b40; }
+.signal-badge.SELL { background: #7f1d1d20; color: var(--sell); border: 1px solid #ef444440; }
+
+.presence-dots { display: flex; gap: 3px; }
+.pdot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); opacity: 0.3; }
+.pdot.filled { opacity: 1; }
+
+/* Form */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-field { display: flex; flex-direction: column; gap: 4px; }
+.form-field label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.form-input { background: var(--card2); border: 1px solid var(--border); color: var(--text);
+  border-radius: 6px; padding: 8px 10px; font-size: 12px; outline: none; width: 100%; }
+.form-input:focus { border-color: var(--accent); }
+.submit-btn { grid-column: 1/-1; padding: 10px; background: var(--accent); border: none;
+  color: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+/* Upload zone */
+.upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 32px;
+  text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 14px;
+  transition: border-color .2s; }
+.upload-zone:hover { border-color: var(--accent); color: var(--text); }
+.upload-icon { font-size: 32px; margin-bottom: 8px; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ═══ CONTROLS ═══ -->
+<div class="ctrl">
+  <div class="ctrl-header">
+    <h2>MINOS PRIME</h2>
+    <p>UI Playground — referencia para AG</p>
+  </div>
+
+  <div class="ctrl-section">
+    <label>Vista activa</label>
+    <div class="btn-group" id="view-btns">
+      <button class="active" data-view="dashboard">Dashboard</button>
+      <button data-view="carteras">Carteras</button>
+      <button data-view="tickers">Tickers</button>
+      <button data-view="cargar">Cargar</button>
+    </div>
+  </div>
+
+  <div class="ctrl-section">
+    <label>Estado de cartera</label>
+    <div class="btn-group" id="status-btns">
+      <button data-status="expansión">Expansión</button>
+      <button class="active" data-status="neutral">Neutral</button>
+      <button data-status="riesgo">Riesgo</button>
+    </div>
+  </div>
+
+  <div class="ctrl-section">
+    <label>Gráfico por activo</label>
+    <div class="btn-group" id="chart-btns">
+      <button class="active" data-chart="donut">Donut</button>
+      <button data-chart="bars">Barras</button>
+    </div>
+  </div>
+
+  <div class="ctrl-section">
+    <label>Opciones</label>
+    <div class="toggle-row">
+      <span>Mostrar señales</span>
+      <button class="toggle on" id="toggle-signals"></button>
+    </div>
+    <div class="toggle-row">
+      <span>Sidebar expandido</span>
+      <button class="toggle" id="toggle-sidebar"></button>
+    </div>
+    <div class="toggle-row">
+      <span>Precios en vivo</span>
+      <button class="toggle on" id="toggle-prices"></button>
+    </div>
+  </div>
+
+  <div class="ctrl-section">
+    <label>Presets</label>
+    <div class="preset-grid">
+      <button class="preset-btn" data-preset="toro-dark">TORO Dark</button>
+      <button class="preset-btn" data-preset="emerald">Emerald</button>
+      <button class="preset-btn" data-preset="risk-mode">Risk Mode</button>
+      <button class="preset-btn" data-preset="minimal">Minimal</button>
+    </div>
+  </div>
+
+  <div class="ctrl-section">
+    <label>Color de acento (H: <span id="hue-val">245</span>°)</label>
+    <input type="range" id="hue-slider" min="0" max="360" value="245">
+  </div>
+
+  <div class="prompt-box">
+    <label>Prompt para AG →</label>
+    <textarea class="prompt-text" id="prompt-out" readonly></textarea>
+    <button class="copy-btn" id="copy-btn">Copiar prompt</button>
+  </div>
+</div>
+
+<!-- ═══ PREVIEW ═══ -->
+<div class="preview">
+  <div class="app-frame">
+
+    <!-- Sidebar -->
+    <div class="app-sidebar" id="app-sidebar">
+      <div class="logo">M</div>
+      <div class="nav-item active" data-nav="dashboard" title="Dashboard">⬡</div>
+      <div class="nav-item" data-nav="carteras" title="Carteras">⊞</div>
+      <div class="nav-item" data-nav="tickers" title="Tickers">◈</div>
+      <div class="nav-item" data-nav="cargar" title="Cargar datos">⊕</div>
+    </div>
+
+    <!-- Content -->
+    <div class="app-content" id="app-content"></div>
+
+  </div>
+</div>
+
+<script>
+// ── Mock data ────────────────────────────────────────────────────────────────
+const DATA = {
+  total_ars: 47850000,
+  total_usd: 32500,
+  positions: 8,
+  portfolios_count: 2,
+  by_asset: [
+    { ticker: "GGAL.BA", valuation: 12500000, pct: 26.1, portfolios: ["Principal","Conservadora"], signal: "BUY",  price: 452.5  },
+    { ticker: "YPFD.BA", valuation: 9800000,  pct: 20.5, portfolios: ["Principal"],                signal: "HOLD", price: 35120  },
+    { ticker: "MELI",    valuation: 8200000,  pct: 17.1, portfolios: ["Principal"],                signal: "HOLD", price: 1842.3 },
+    { ticker: "PAMP.BA", valuation: 7100000,  pct: 14.8, portfolios: ["Conservadora"],             signal: "BUY",  price: 118.4  },
+    { ticker: "AAPL",    valuation: 5600000,  pct: 11.7, portfolios: ["Principal"],                signal: "HOLD", price: 189.2  },
+    { ticker: "AL30",    valuation: 2850000,  pct: 6.0,  portfolios: ["Conservadora"],             signal: "SELL", price: 64.5   },
+    { ticker: "GD35",    valuation: 1800000,  pct: 3.8,  portfolios: ["Principal"],                signal: "HOLD", price: 42.1   },
+  ],
+  by_source: [
+    { source: "Balanz", valuation: 32000000, pct: 66.9 },
+    { source: "IOL",    valuation: 15850000, pct: 33.1 },
+  ],
+  by_currency: [
+    { currency: "ARS", valuation: 35500000, pct: 74.2, color: "var(--ars)" },
+    { currency: "USD", valuation: 12350000, pct: 25.8, color: "var(--usd)" },
+  ],
+  portfolios: [
+    { name: "Principal",    source: "Balanz", positions: 5, valuation: 32000000, pct: 66.9 },
+    { name: "Conservadora", source: "IOL",    positions: 3, valuation: 15850000, pct: 33.1 },
+  ],
+  insights: {
+    expansión: ["Crecimiento sostenido en renta variable AR","Exposición USD dentro del rango objetivo","Momentum positivo en GGAL.BA y PAMP.BA"],
+    neutral:   ["GGAL.BA representa el 26% — concentración alta","Exposición USD del 26% — dentro del rango","AL30 en señal SELL — considerar rotación"],
+    riesgo:    ["Concentración crítica en activos volátiles","Exposición USD muy baja (25%) — riesgo ARS","3 activos en señal SELL simultáneos"],
+  },
+  actions: {
+    expansión: "Aprovechar momentum. Considerar incrementar posición en PAMP.BA.",
+    neutral:   "Reducir exposición a GGAL.BA. Evaluar rotación de AL30.",
+    riesgo:    "Reducir riesgo urgente. Incrementar dolarización al 40%+.",
+  },
+};
+
+const COLORS = ['#6366f1','#8b5cf6','#06b6d4','#22c55e','#f59e0b','#ef4444','#ec4899'];
+
+// ── State ────────────────────────────────────────────────────────────────────
+const state = {
+  view: 'dashboard',
+  status: 'neutral',
+  chart: 'donut',
+  signals: true,
+  sidebarExpanded: false,
+  livePrices: true,
+  hue: 245,
+};
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function fmt(n) {
+  if (n >= 1e6) return '$' + (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return '$' + (n/1e3).toFixed(0) + 'K';
+  return '$' + n;
+}
+
+function renderDashboard() {
+  const s = DATA.insights[state.status];
+  const a = DATA.actions[state.status];
+  return `
+    <div class="page-header">
+      <h1>Dashboard</h1>
+      <span class="date">Hoy · 17/04/2026 ${state.livePrices ? '· <span style="color:var(--buy)">● En vivo</span>' : ''}</span>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="label">Patrimonio ARS</div>
+        <div class="value">${fmt(DATA.total_ars)}</div>
+        <div class="sub delta up">▲ 2.4% hoy</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Patrimonio USD</div>
+        <div class="value" style="color:var(--usd)">$${DATA.total_usd.toLocaleString()}</div>
+        <div class="sub delta up">▲ 1.1% hoy</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Posiciones</div>
+        <div class="value">${DATA.positions}</div>
+        <div class="sub" style="color:var(--muted)">en 2 carteras</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Carteras</div>
+        <div class="value">${DATA.portfolios_count}</div>
+        <div class="sub" style="color:var(--muted)">Balanz · IOL</div>
+      </div>
+    </div>
+
+    <div class="status-banner">
+      <div>
+        <div class="status-badge ${state.status}">${state.status.toUpperCase()}</div>
+      </div>
+      <div class="status-content">
+        <div class="action">→ ${a}</div>
+        <div class="insights">
+          ${s.map(i => `<div class="insight-item">${i}</div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">Distribución por activo</div>
+        ${state.chart === 'donut' ? renderDonutCard() : renderBarsCard()}
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Por fuente</div>
+        ${renderSourceBars()}
+        <div style="height:14px"></div>
+        <div class="chart-title">Exposición moneda</div>
+        ${renderCurrencyBar()}
+      </div>
+    </div>
+  `;
+}
+
+function renderDonutCard() {
+  const legendItems = DATA.by_asset.map((a, i) => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${COLORS[i]}"></div>
+      <span class="legend-name">${a.ticker}</span>
+      <span class="legend-pct">${a.pct}%</span>
+    </div>
+  `).join('');
+  return `
+    <div class="donut-wrap">
+      <canvas id="donut-canvas" width="110" height="110"></canvas>
+      <div class="legend">${legendItems}</div>
+    </div>
+  `;
+}
+
+function renderBarsCard() {
+  return `<div class="hbar-list">
+    ${DATA.by_asset.map((a,i) => `
+      <div class="hbar-row">
+        <div class="hbar-meta">
+          <span class="name">${a.ticker}</span>
+          <span class="val">${a.pct}%</span>
+        </div>
+        <div class="hbar-track">
+          <div class="hbar-fill" style="width:${a.pct}%;background:${COLORS[i]}"></div>
+        </div>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function renderSourceBars() {
+  return `<div class="hbar-list">
+    ${DATA.by_source.map((s,i) => `
+      <div class="hbar-row">
+        <div class="hbar-meta">
+          <span class="name">${s.source}</span>
+          <span class="val">${fmt(s.valuation)} (${s.pct}%)</span>
+        </div>
+        <div class="hbar-track">
+          <div class="hbar-fill" style="width:${s.pct}%;background:${i===0?'var(--accent)':'var(--accent2)'}"></div>
+        </div>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function renderCurrencyBar() {
+  return `
+    <div class="currency-bar">
+      ${DATA.by_currency.map(c => `
+        <div class="currency-seg" style="width:${c.pct}%;background:${c.color}">
+          ${c.pct > 10 ? c.currency : ''}
+        </div>
+      `).join('')}
+    </div>
+    <div class="currency-legend">
+      ${DATA.by_currency.map(c => `
+        <div class="cur-item">
+          <div class="cur-dot" style="background:${c.color}"></div>
+          ${c.currency} · ${c.pct}% · ${fmt(c.valuation)}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderCarteras() {
+  return `
+    <div class="page-header">
+      <h1>Carteras</h1>
+      <span class="date">${DATA.portfolios_count} carteras activas</span>
+    </div>
+    <div class="chart-card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Nombre</th><th>Fuente</th><th>Posiciones</th>
+            <th>Valuación ARS</th><th>% Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${DATA.portfolios.map(p => `
+            <tr>
+              <td style="font-weight:600">${p.name}</td>
+              <td style="color:var(--muted)">${p.source}</td>
+              <td>${p.positions}</td>
+              <td>${fmt(p.valuation)}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="hbar-track" style="width:80px">
+                    <div class="hbar-fill" style="width:${p.pct}%;background:var(--accent)"></div>
+                  </div>
+                  <span style="color:var(--muted);font-size:11px">${p.pct}%</span>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Posiciones · Principal</div>
+      <table class="data-table">
+        <thead><tr><th>Ticker</th><th>Precio</th><th>Valuación</th><th>% Cartera</th>${state.signals ? '<th>Señal</th>' : ''}</tr></thead>
+        <tbody>
+          ${DATA.by_asset.filter(a=>a.portfolios.includes('Principal')).map(a=>`
+            <tr>
+              <td style="font-weight:600">${a.ticker}</td>
+              <td style="color:var(--muted)">$${a.price.toLocaleString()}</td>
+              <td>${fmt(a.valuation)}</td>
+              <td>${(a.valuation/32000000*100).toFixed(1)}%</td>
+              ${state.signals ? `<td><span class="signal-badge ${a.signal}">${a.signal}</span></td>` : ''}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderTickers() {
+  const maxP = 2;
+  return `
+    <div class="page-header">
+      <h1>Tickers Unificados</h1>
+      <span class="date">${DATA.by_asset.length} activos únicos</span>
+    </div>
+    <div class="chart-card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Precio</th>
+            ${state.signals ? '<th>Señal</th>' : ''}
+            <th>Presencia</th>
+            <th>Carteras</th>
+            <th>Valuación</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${DATA.by_asset.map(a => `
+            <tr>
+              <td style="font-weight:700">${a.ticker}</td>
+              <td style="color:var(--muted);font-family:monospace">$${a.price.toLocaleString()}</td>
+              ${state.signals ? `<td><span class="signal-badge ${a.signal}">${a.signal}</span></td>` : ''}
+              <td>
+                <div class="presence-dots">
+                  ${Array.from({length:maxP},(_,i)=>`<div class="pdot${i<a.portfolios.length?' filled':''}"></div>`).join('')}
+                  <span style="margin-left:4px;font-size:10px;color:var(--muted)">${a.portfolios.length}/${maxP}</span>
+                </div>
+              </td>
+              <td style="font-size:11px;color:var(--muted)">${a.portfolios.join(', ')}</td>
+              <td>${fmt(a.valuation)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderCargar() {
+  return `
+    <div class="page-header">
+      <h1>Cargar Datos</h1>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title" style="margin-bottom:14px">Carga por archivo CSV / Excel</div>
+      <div class="upload-zone">
+        <div class="upload-icon">⬆</div>
+        <div>Arrastrá tu CSV o XLSX aquí</div>
+        <div style="font-size:11px;margin-top:4px">o hacé clic para seleccionar</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-field">
+          <label>Fuente</label>
+          <select class="form-input"><option>Balanz</option><option>IOL</option></select>
+        </div>
+        <div class="form-field">
+          <label>Cartera</label>
+          <select class="form-input"><option>Principal</option><option>Conservadora</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title" style="margin-bottom:14px">Carga manual de posición</div>
+      <div class="form-grid">
+        <div class="form-field">
+          <label>Ticker</label>
+          <input class="form-input" placeholder="ej. GGAL.BA" />
+        </div>
+        <div class="form-field">
+          <label>Cantidad</label>
+          <input class="form-input" type="number" placeholder="100" />
+        </div>
+        <div class="form-field">
+          <label>Moneda</label>
+          <select class="form-input"><option>ARS</option><option>USD</option></select>
+        </div>
+        <div class="form-field">
+          <label>Valuación</label>
+          <input class="form-input" type="number" placeholder="1500" />
+        </div>
+        <div class="form-field">
+          <label>Fuente</label>
+          <input class="form-input" placeholder="Balanz" />
+        </div>
+        <div class="form-field">
+          <label>Cartera</label>
+          <input class="form-input" placeholder="Principal" />
+        </div>
+        <button class="submit-btn">Agregar posición</button>
+      </div>
+    </div>
+  `;
+}
+
+function drawDonut() {
+  const canvas = document.getElementById('donut-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const cx = canvas.width/2, cy = canvas.height/2;
+  const R = 48, r = 30;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  let angle = -Math.PI/2;
+  DATA.by_asset.forEach((a, i) => {
+    const slice = (a.pct/100) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R, angle, angle + slice);
+    ctx.closePath();
+    ctx.fillStyle = COLORS[i];
+    ctx.fill();
+    angle += slice;
+  });
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.fillStyle = '#181830';
+  ctx.fill();
+  ctx.fillStyle = '#ddddf5';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 12px system-ui';
+  ctx.fillText('$47.8M', cx, cy-7);
+  ctx.font = '9px system-ui';
+  ctx.fillStyle = '#7878a8';
+  ctx.fillText('ARS Total', cx, cy+7);
+}
+
+function renderApp() {
+  const content = document.getElementById('app-content');
+  let html = '';
+  if (state.view === 'dashboard') html = renderDashboard();
+  else if (state.view === 'carteras') html = renderCarteras();
+  else if (state.view === 'tickers') html = renderTickers();
+  else if (state.view === 'cargar') html = renderCargar();
+  content.innerHTML = html;
+  if (state.view === 'dashboard' && state.chart === 'donut') {
+    requestAnimationFrame(drawDonut);
+  }
+  // Nav sync
+  document.querySelectorAll('.nav-item[data-nav]').forEach(n => {
+    n.classList.toggle('active', n.dataset.nav === state.view);
+  });
+}
+
+function updatePrompt() {
+  const viewMap = { dashboard:'Dashboard principal', carteras:'vista de Carteras', tickers:'vista de Tickers unificados', cargar:'pantalla de Carga de datos' };
+  const parts = [];
+  parts.push(`Implementar la ${viewMap[state.view]} del sistema MINOS PRIME`);
+  parts.push(`tema oscuro con fondo #0b0b18 y acento hsl(${state.hue}, 80%, 65%)`);
+  if (state.signals) parts.push('señales BUY/HOLD/SELL visibles por ticker');
+  if (state.livePrices) parts.push('indicador de precios en vivo');
+  parts.push(`estado de cartera: ${state.status.toUpperCase()}`);
+  if (state.chart === 'bars') parts.push('gráfico de distribución en barras horizontales (no donut)');
+  parts.push('stack: Next.js 14, TypeScript, TailwindCSS, dark mode default');
+  parts.push('API base: http://localhost:8001/api/v1');
+  document.getElementById('prompt-out').value =
+    parts.join('. ') + '.\n\nEndpoints disponibles: GET /portfolio/summary, GET /portfolios, GET /positions, GET /tickers/unified, GET /market/prices, POST /market/refresh, POST /ingest/file, POST /positions.';
+}
+
+function setAccentHue(hue) {
+  const l = `hsl(${hue},75%,62%)`;
+  const l2 = `hsl(${hue},70%,68%)`;
+  document.documentElement.style.setProperty('--accent', l);
+  document.documentElement.style.setProperty('--accent2', l2);
+}
+
+function updateAll() { renderApp(); updatePrompt(); }
+
+// ── Controls wiring ───────────────────────────────────────────────────────────
+document.querySelectorAll('#view-btns button').forEach(b => {
+  b.addEventListener('click', () => {
+    state.view = b.dataset.view;
+    document.querySelectorAll('#view-btns button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    updateAll();
+  });
+});
+
+document.querySelectorAll('#status-btns button').forEach(b => {
+  b.addEventListener('click', () => {
+    state.status = b.dataset.status;
+    document.querySelectorAll('#status-btns button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    updateAll();
+  });
+});
+
+document.querySelectorAll('#chart-btns button').forEach(b => {
+  b.addEventListener('click', () => {
+    state.chart = b.dataset.chart;
+    document.querySelectorAll('#chart-btns button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    updateAll();
+  });
+});
+
+['signals','sidebar','prices'].forEach((key, i) => {
+  const ids = ['toggle-signals','toggle-sidebar','toggle-prices'];
+  const stateKeys = ['signals','sidebarExpanded','livePrices'];
+  document.getElementById(ids[i]).addEventListener('click', function() {
+    state[stateKeys[i]] = !state[stateKeys[i]];
+    this.classList.toggle('on', state[stateKeys[i]]);
+    updateAll();
+  });
+});
+
+document.getElementById('hue-slider').addEventListener('input', function() {
+  state.hue = this.value;
+  document.getElementById('hue-val').textContent = this.value;
+  setAccentHue(this.value);
+  updateAll();
+});
+
+// Nav items in sidebar
+document.addEventListener('click', e => {
+  const nav = e.target.closest('.nav-item[data-nav]');
+  if (nav) {
+    state.view = nav.dataset.nav;
+    document.querySelectorAll('#view-btns button').forEach(b => {
+      b.classList.toggle('active', b.dataset.view === state.view);
+    });
+    updateAll();
+  }
+});
+
+// Presets
+const PRESETS = {
+  'toro-dark':  { hue: 245, status: 'neutral',   chart: 'donut', signals: true  },
+  'emerald':    { hue: 160, status: 'expansión',  chart: 'donut', signals: true  },
+  'risk-mode':  { hue: 0,   status: 'riesgo',     chart: 'bars',  signals: true  },
+  'minimal':    { hue: 220, status: 'neutral',     chart: 'bars',  signals: false },
+};
+document.querySelectorAll('.preset-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    const p = PRESETS[b.dataset.preset];
+    Object.assign(state, p);
+    document.getElementById('hue-slider').value = p.hue;
+    document.getElementById('hue-val').textContent = p.hue;
+    setAccentHue(p.hue);
+    document.getElementById('toggle-signals').classList.toggle('on', p.signals);
+    document.querySelectorAll('#status-btns button').forEach(x => x.classList.toggle('active', x.dataset.status === p.status));
+    document.querySelectorAll('#chart-btns button').forEach(x => x.classList.toggle('active', x.dataset.chart === p.chart));
+    updateAll();
+  });
+});
+
+document.getElementById('copy-btn').addEventListener('click', () => {
+  navigator.clipboard.writeText(document.getElementById('prompt-out').value);
+  const btn = document.getElementById('copy-btn');
+  btn.textContent = '¡Copiado!';
+  setTimeout(() => btn.textContent = 'Copiar prompt', 1500);
+});
+
+// Init
+updateAll();
+</script>
+</body>
+</html>
