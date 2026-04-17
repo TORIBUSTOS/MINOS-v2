@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(commit-commands:commit-push-pr)",
+      "Skill(commit-commands:commit-push-pr:*)",
+      "mcp__3c9e1cac-0193-4cad-bfec-1067ec09a75c__notion-search",
+      "Bash(python -m pip install -r requirements.txt --quiet)",
+      "Bash(python -c \"import fastapi, sqlalchemy, pydantic, alembic, pandas, pytest; print\\('OK'\\)\")",
+      "Bash(python -m pytest tests/test_models.py -v)"
+    ]
+  }
+}
