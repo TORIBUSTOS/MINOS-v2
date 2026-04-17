@@ -1,7 +1,7 @@
 /**
  * MINOS PRIME — API Client
  * Typed wrapper over fetch for all MINOS backend endpoints.
- * Base URL from NEXT_PUBLIC_MINOS_API_URL (default: http://localhost:8001)
+ * Base URL from NEXT_PUBLIC_MINOS_API_URL (default: http://localhost:8800)
  */
 
 import type {
@@ -20,7 +20,7 @@ import type {
 // ── Config ───────────────────────────────────────────────────────────────────
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_MINOS_API_URL ?? "http://localhost:8001"
+  process.env.NEXT_PUBLIC_MINOS_API_URL ?? "http://localhost:8800"
 
 // ── Error handling ────────────────────────────────────────────────────────────
 

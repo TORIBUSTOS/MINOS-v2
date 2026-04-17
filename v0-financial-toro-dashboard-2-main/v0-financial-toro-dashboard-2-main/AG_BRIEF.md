@@ -66,7 +66,7 @@ useFileUpload()           // → { upload(file, source, portfolio), loading, err
 
 ---
 
-## API del backend (FastAPI en localhost:8001)
+## API del backend (FastAPI en localhost:8800)
 
 ```
 GET  /api/v1/portfolio/summary      → consolidado completo
@@ -215,7 +215,7 @@ pnpm install
 pnpm dev
 
 # Backend MINOS debe estar corriendo en paralelo:
-# cd ../../  &&  uvicorn src.main:app --reload --port 8001
+# cd ../../  &&  uvicorn src.main:app --reload --port 8800
 ```
 
 ---

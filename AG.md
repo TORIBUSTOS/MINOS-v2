@@ -55,7 +55,7 @@ v0-financial-toro-dashboard-2-main/
 │   ├── layout/           # Sidebar y Header unificado
 │   └── ui/               # Componentes atómicos (shadcn)
 ├── hooks/
-│   └── use-minos.ts      # Integración con Minos API (8001)
+│   └── use-minos.ts      # Integración con Minos API (8800)
 ├── lib/
 │   └── minos-formatters.ts # Lógica de formateo y mapeo central [AG]
 ├── types/
@@ -77,7 +77,7 @@ v0-financial-toro-dashboard-2-main/
 
 ## Sync & Integration (BN-006 / BN-008)
 
-- **Frontend-Backend Contract:** Toda la data fluye a través de `useMinos` hooks conectando a `localhost:8001`.
+- **Frontend-Backend Contract:** Toda la data fluye a través de `useMinos` hooks conectando a `localhost:8800`.
 - **Normalization:** AG implementó heurísticas en el frontend para clasificar activos que el backend aún no categoriza dinámicamente.
 - **Tickers Layer:** Integración del endpoint `/api/v1/tickers/unified` en la nueva vista de Tickers.
 

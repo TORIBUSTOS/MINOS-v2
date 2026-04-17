@@ -27,7 +27,7 @@ Documentación de referencia: https://github.com/TORIBUSTOS/Trinity → `project
 pip install -r requirements.txt
 
 # Levantar API (dev)
-uvicorn src.main:app --reload --port 8001
+uvicorn src.main:app --reload --port 8800
 
 # Tests
 pytest tests/ -v
@@ -140,8 +140,11 @@ Ver `minos-prime/MINOS_BN_BREAKDOWN.md` para el estado completo.
 - [x] BN-006: Unified Ticker Layer
 - [x] BN-007: Normalization (tickers, monedas, duplicados)
 - [x] BN-007b: Market Data Service (yfinance, cache TTL, fallback MERVAL .BA)
-- [x] BN-008: API patrimonial — 6 endpoints REST
+- [x] BN-008: API patrimonial — 6 endpoints REST (http://localhost:8001)
 
-**Total: 92 tests passing**
+**Sprint 1 — TRACK C: Frontend Base** ✅
+- [x] Frontend Local: http://localhost:4400
+- [x] Branding: MINOS Prime
+
 
 Branch activo: `main` (Track A + B mergeados) — próximo: `claude/minos-bn009` (Track C) o `claude/minos-bn013` (Track D)

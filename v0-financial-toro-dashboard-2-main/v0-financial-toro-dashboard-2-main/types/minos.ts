@@ -1,7 +1,7 @@
 /**
  * MINOS PRIME — TypeScript types
  * Mirror of Python Pydantic schemas in src/schemas/
- * API base: http://localhost:8001/api/v1
+ * API base: http://localhost:8800/api/v1
  */
 
 // ── Enums ────────────────────────────────────────────────────────────────────
