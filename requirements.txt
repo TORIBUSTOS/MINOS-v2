@@ -16,6 +16,9 @@ pydantic-settings==2.7.0
 pandas==2.2.3
 openpyxl==3.1.5
 
+# Market data
+yfinance>=0.2.54
+
 # Testing
 pytest==8.3.4
 pytest-asyncio==0.24.0
