@@ -198,3 +198,28 @@ export function useFileUpload() {
 
   return { upload, loading, error, result }
 }
+
+/**
+ * Manual position entry.
+ * Returns { add, loading, error } — call add(data).
+ */
+export function useCreatePosition() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState<MinosApiError | Error | null>(null)
+
+  const add = useCallback(async (data: any) => {
+    setLoading(true)
+    setError(null)
+    try {
+      return await MinosAPI.createPosition(data)
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e))
+      setError(err)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  return { add, loading, error }
+}

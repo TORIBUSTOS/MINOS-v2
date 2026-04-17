@@ -1,5 +1,5 @@
-import { FinancialAnalyticsDashboard } from "@/components/cards"
+import { DashboardView } from "@/components/dashboard/dashboard-view"
 
 export default function Home() {
-  return <FinancialAnalyticsDashboard />
+  return <DashboardView />
 }

@@ -168,3 +168,44 @@ export const ASSET_COLORS: Record<string, string> = {
 export function assetColor(category: string): string {
   return ASSET_COLORS[category] ?? ASSET_COLORS.default
 }
+/**
+ * Shared category mapping for when backend doesn't provide metadata.
+ * Based on quasi-actual data from Balanz screenshots.
+ */
+export const TICKER_CATEGORIES: Record<string, string> = {
+  // Acciones
+  BMA: "Acciones", ECOG: "Acciones", GGAL: "Acciones", PAMP: "Acciones", 
+  SUPV: "Acciones", YPFD: "Acciones", ALUA: "Acciones", TXAR: "Acciones",
+  EDN: "Acciones", CEPU: "Acciones", COME: "Acciones", TRAN: "Acciones",
+  TECO2: "Acciones",
+  // Bonos
+  AE38: "Bonos", AL30: "Bonos", GD30: "Bonos", GD38: "Bonos", 
+  AL29: "Bonos", GD29: "Bonos", GD35: "Bonos",
+  // Cedears
+  EEM: "Cedears", MELI: "Cedears", META: "Cedears", MSFT: "Cedears",
+  NFLX: "Cedears", NVDA: "Cedears", QQQ: "Cedears", SPY: "Cedears",
+  TSM: "Cedears", AAPL: "Cedears", AMZN: "Cedears", TSLA: "Cedears",
+  KO: "Cedears", DIA: "Cedears", GOOGL: "Cedears",
+  // Corporativos / ONs
+  IRCPO: "Corporativos",
+}
+
+/**
+ * Heuristic to categorize a ticker based on the map or its name.
+ */
+export function getAssetCategory(ticker: string): string {
+  const upperTicker = ticker.toUpperCase()
+  if (TICKER_CATEGORIES[upperTicker]) return TICKER_CATEGORIES[upperTicker]
+  
+  if (
+    upperTicker.startsWith("BALANZ") || 
+    upperTicker.includes("FCI") || 
+    upperTicker.includes("FONDO") ||
+    upperTicker.includes("BCMM") ||
+    upperTicker.includes("PRIVAD")
+  ) {
+    return "Fondos"
+  }
+  
+  return "Otros"
+}
