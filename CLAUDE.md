@@ -81,6 +81,15 @@ minos-v2/
 
 ---
 
+## Testing — Gotchas
+
+- SQLite in-memory: usar `poolclass=StaticPool` en el engine de test — FastAPI corre en threadpool y cada thread abriría conexión nueva (DB vacía)
+- Importar TODOS los modelos antes de `Base.metadata.create_all()` aunque no se usen directamente — si falta uno, la tabla no existe
+- Fixture chain: `db_engine (StaticPool)` → `client` + `db_session` — ambos deben compartir el mismo engine
+- FastAPI lifespan: usar `@asynccontextmanager` + `lifespan=` en `FastAPI(...)` — `@app.on_event` está deprecado
+
+---
+
 ## Boundaries (NO hacer sin aprobación de Tori)
 
 - Cambiar la estructura de carpetas raíz
@@ -103,7 +112,9 @@ minos-v2/
 Ver `minos-prime/MINOS_BN_BREAKDOWN.md` para el estado completo.
 
 **Sprint 1 — TRACK A: Data Layer**
-- [ ] BN-001: Scaffold ← estás aquí
-- [ ] BN-002: Modelo de datos + Schemas
-- [ ] BN-003: Ingestion CSV/Excel
-- [ ] BN-004: Carga manual
+- [x] BN-001: Scaffold
+- [x] BN-002: Modelo de datos + Schemas
+- [x] BN-003: Ingestion CSV/Excel — 22 tests passing
+- [x] BN-004: Carga manual — 37 tests passing
+
+Branch activo: `claude/minos-bn001`
