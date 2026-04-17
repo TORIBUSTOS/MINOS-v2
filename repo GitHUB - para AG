@@ -1,0 +1,19 @@
+
+**Repo:** https://github.com/TORIBUSTOS/MINOS-v2
+
+**Tu tarea:** construir las vistas de UI del frontend MINOS PRIME. La capa técnica ya está hecha — types, API client, hooks, formatters. Vos solo construís los componentes React.
+
+**Empezá leyendo:** `v0-financial-toro-dashboard-2-main/v0-financial-toro-dashboard-2-main/AG_BRIEF.md` — tiene todo lo que necesitás: qué construir, cómo usar los hooks, referencia visual, qué NO tocar.
+
+**Stack:** Next.js 16 + React 19 + TypeScript + Tailwind v4 + shadcn/ui + Recharts + Framer Motion. Todo ya instalado.
+
+**Para correr:**
+```bash
+cd v0-financial-toro-dashboard-2-main/v0-financial-toro-dashboard-2-main
+pnpm install && pnpm dev
+# Backend en paralelo: uvicorn src.main:app --reload --port 8001
+```
+
+**Referencia de diseño:** screenshots del broker real en `minos-prime/150...png`, `152...png`, `153...png`, `154...png`. Seguí ese modelo mental (categorías: Acciones, Bonos, Cedears, Fondos). Tema dark.
+
+**Regla principal:** no modifiques `types/minos.ts`, `lib/minos-api.ts`, `hooks/use-minos.ts`, `lib/minos-formatters.ts`. Todo lo demás es tuyo.
