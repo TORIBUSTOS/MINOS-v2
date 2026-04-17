@@ -49,7 +49,6 @@ export default function RootLayout({
             </main>
           </SidebarInset>
         </SidebarProvider>
-        <Analytics />
       </body>
     </html>
   )
