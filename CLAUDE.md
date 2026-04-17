@@ -111,10 +111,19 @@ minos-v2/
 
 Ver `minos-prime/MINOS_BN_BREAKDOWN.md` para el estado completo.
 
-**Sprint 1 — TRACK A: Data Layer**
+**Sprint 1 — TRACK A: Data Layer** ✅
 - [x] BN-001: Scaffold
 - [x] BN-002: Modelo de datos + Schemas
-- [x] BN-003: Ingestion CSV/Excel — 22 tests passing
-- [x] BN-004: Carga manual — 37 tests passing
+- [x] BN-003: Ingestion CSV/Excel
+- [x] BN-004: Carga manual
+
+**Sprint 1 — TRACK B: Portfolio Engine** ✅
+- [x] BN-005: Portfolio Engine — consolidación multi-cartera
+- [x] BN-006: Unified Ticker Layer
+- [x] BN-007: Normalization (tickers, monedas, duplicados)
+- [x] BN-007b: Market Data Service (yfinance, cache TTL, fallback MERVAL .BA)
+- [x] BN-008: API patrimonial — 6 endpoints REST
+
+**Total: 92 tests passing**
 
 Branch activo: `claude/minos-bn001`
