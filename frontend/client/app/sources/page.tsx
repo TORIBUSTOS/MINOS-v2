@@ -28,7 +28,6 @@ export default function SourcesPage() {
   if (error) return <ErrorState error={error} refetch={() => { refetchSummary(); refetchPositions(); }} />
   if (!summary || !positions) return null
 
-  // Group positions by source
   const sourcesWithPositions = summary.by_source.map(sourceInfo => ({
     ...sourceInfo,
     instruments: positions.filter(p => p.source === sourceInfo.source)
@@ -46,6 +45,24 @@ export default function SourcesPage() {
           Vincular Fuente
         </Button>
       </div>
+
+      {sourcesWithPositions.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 gap-4 text-center rounded-2xl border border-dashed border-border/40 bg-muted/5">
+          <div className="size-14 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
+            <Building2 className="size-7 text-primary/60" />
+          </div>
+          <div>
+            <p className="text-base font-bold text-foreground">Sin fuentes vinculadas</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+              Vinculá un bróker o importá un archivo CSV para ver tus fuentes de capital aquí.
+            </p>
+          </div>
+          <Button variant="default" size="sm" className="rounded-xl h-9 font-bold shadow-lg shadow-primary/20 gap-2 mt-2">
+            <Plus className="size-3.5" />
+            Vincular primera fuente
+          </Button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {sourcesWithPositions.map((source, idx) => (

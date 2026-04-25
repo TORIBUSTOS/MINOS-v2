@@ -1,35 +1,34 @@
 "use client"
 
 import React from "react"
-import { 
-  DollarSign, 
-  TrendingUp, 
-  Wallet, 
-  Building2, 
-  Globe, 
-  ArrowUpRight,
+import { motion } from "motion/react"
+import {
+  DollarSign,
+  Building2,
+  Globe,
   LayoutGrid,
-  History
+  BarChart2,
+  PieChart
 } from "lucide-react"
-import { 
-  KpiCard, 
-  SectionPanel, 
-  SectionHeader, 
-  GlowOrb, 
-  LoadingState, 
-  ErrorState 
+import {
+  KpiCard,
+  SectionPanel,
+  SectionHeader,
+  GlowOrb,
+  LoadingState,
+  ErrorState
 } from "./dashboard-ui"
 import { AllocationDonut } from "./allocation-donut"
 import { MarketWidget } from "./market-widget"
 import { usePortfolioSummary } from "@/hooks/use-minos"
 import { formatARS, formatARSCompact, formatPctAlloc } from "@/lib/minos-formatters"
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   Cell
 } from "recharts"
@@ -60,12 +59,11 @@ export function DashboardView() {
     <div className="flex flex-col gap-6 animate-fade-up">
       {/* KPI Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard 
-          label="Patrimonio Total" 
-          value={formatARSCompact(data.total_valuation).replace("$ ", "")} 
-          prefix="$"
-          delay={0} 
-          icon={DollarSign} 
+        <KpiCard
+          label="Patrimonio Total"
+          value={formatARSCompact(data.total_valuation)}
+          delay={0}
+          icon={DollarSign}
         />
         <KpiCard 
           label="Instrumentos" 
@@ -97,68 +95,84 @@ export function DashboardView() {
           <SectionPanel className="h-[400px]">
             <GlowOrb className="w-64 h-64 -top-32 -left-32 bg-primary/5" />
             <SectionHeader title="Valuación por Instrumento" subtitle="Top activos por peso en cartera" />
-            <div className="h-[280px] mt-4">
+            {data.by_asset.length === 0 ? (
+              <div className="h-[280px] flex flex-col items-center justify-center gap-3 text-center">
+                <BarChart2 className="size-10 text-muted-foreground/20" />
+                <p className="text-sm font-medium text-muted-foreground">Sin instrumentos cargados</p>
+                <p className="text-xs text-muted-foreground/60">Importá un CSV o cargá posiciones manualmente para ver la distribución.</p>
+              </div>
+            ) : (
+              <div className="h-[280px] mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.by_asset.slice(0, 8)} layout="vertical" margin={{ left: 40, right: 40 }}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="oklch(0.24 0.01 260)" />
-                        <XAxis type="number" hide />
-                        <YAxis 
-                            dataKey="ticker" 
-                            type="category" 
-                            axisLine={false} 
-                            tickLine={false}
-                            tick={{ fontSize: 11, fontWeight: 700, fill: "oklch(0.58 0.015 260)" }}
-                        />
-                        <Tooltip 
-                            cursor={{ fill: 'oklch(0.20 0.012 260 / 0.4)' }}
-                            content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                    return (
-                                        <div className="surface-elevated p-3 rounded-xl border border-border/50 shadow-xl">
-                                            <p className="text-xs font-bold text-foreground mb-1">{payload[0].payload.ticker}</p>
-                                            <p className="text-sm font-mono text-primary font-bold">{formatARS(payload[0].value as number)}</p>
-                                        </div>
-                                    )
-                                }
-                                return null
-                            }}
-                        />
-                        <Bar dataKey="valuation" fill="var(--primary)" radius={[0, 4, 4, 0]} barSize={24}>
-                            {data.by_asset.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fillOpacity={1 - (index * 0.1)} />
-                            ))}
-                        </Bar>
-                    </BarChart>
+                  <BarChart data={data.by_asset.slice(0, 8)} layout="vertical" margin={{ left: 40, right: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="oklch(0.24 0.01 260)" />
+                    <XAxis type="number" hide />
+                    <YAxis
+                      dataKey="ticker"
+                      type="category"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 11, fontWeight: 700, fill: "oklch(0.58 0.015 260)" }}
+                    />
+                    <Tooltip
+                      cursor={{ fill: 'oklch(0.20 0.012 260 / 0.4)' }}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="surface-elevated p-3 rounded-xl border border-border/50 shadow-xl">
+                              <p className="text-xs font-bold text-foreground mb-1">{payload[0].payload.ticker}</p>
+                              <p className="text-sm font-mono text-primary font-bold">{formatARS(payload[0].value as number)}</p>
+                            </div>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <Bar dataKey="valuation" fill="var(--primary)" radius={[0, 4, 4, 0]} barSize={24}>
+                      {data.by_asset.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fillOpacity={1 - (index * 0.1)} />
+                      ))}
+                    </Bar>
+                  </BarChart>
                 </ResponsiveContainer>
-            </div>
+              </div>
+            )}
           </SectionPanel>
 
           {/* Source/Broker Breakdown */}
           <SectionPanel>
             <SectionHeader title="Capital por Fuente" subtitle="Consolidación multibróker" />
-            <div className="space-y-4">
+            {data.by_source.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+                <PieChart className="size-10 text-muted-foreground/20" />
+                <p className="text-sm font-medium text-muted-foreground">Sin fuentes vinculadas</p>
+                <p className="text-xs text-muted-foreground/60">Vinculá un bróker o importá datos para ver la distribución por fuente.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
                 {data.by_source.map((source, i) => (
-                    <div key={i} className="flex items-center gap-4">
-                        <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                            <Building2 className="size-5 text-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                                <span className="font-bold text-sm text-foreground">{source.source}</span>
-                                <span className="font-mono text-sm font-bold">{formatARS(source.valuation)}</span>
-                            </div>
-                            <div className="w-full h-1.5 rounded-full bg-muted/30 overflow-hidden text-[0px]">
-                                <motion.div 
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${source.pct}%` }}
-                                    transition={{ duration: 1, delay: 0.5 + (i * 0.1) }}
-                                    className="h-full bg-primary rounded-full shadow-[0_0_10px_rgba(var(--primary),0.3)]"
-                                />
-                            </div>
-                        </div>
+                  <div key={i} className="flex items-center gap-4">
+                    <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                      <Building2 className="size-5 text-primary" />
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-sm text-foreground">{source.source}</span>
+                        <span className="font-mono text-sm font-bold">{formatARS(source.valuation)}</span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-muted/30 overflow-hidden text-[0px]">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${source.pct}%` }}
+                          transition={{ duration: 1, delay: 0.5 + (i * 0.1) }}
+                          className="h-full bg-primary rounded-full shadow-[0_0_10px_rgba(var(--primary),0.3)]"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 ))}
-            </div>
+              </div>
+            )}
           </SectionPanel>
 
           {/* Currency Exposure */}
