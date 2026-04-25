@@ -1,15 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { 
-  Search, 
-  Bell, 
-  Menu, 
-  Github, 
-  Plus, 
-  History, 
-  TrendingUp,
-  RefreshCw
+import {
+  Search,
+  Bell,
+  Plus,
+  RefreshCw,
+  CheckCircle2
 } from "lucide-react"
 
 import {
@@ -24,20 +21,33 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
-import { usePathname } from "next/navigation"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { usePathname, useRouter } from "next/navigation"
 
 export function AppHeader() {
   const pathname = usePathname()
-  
+  const router = useRouter()
+  const [syncing, setSyncing] = React.useState(false)
+
   const getPageTitle = (path: string) => {
     switch (path) {
       case "/": return "Dashboard"
       case "/instruments": return "Mis Instrumentos"
       case "/sources": return "Por Fuente"
+      case "/tickers": return "Tickers Unificados"
       case "/manual-entry": return "Carga Manual"
       case "/settings": return "Configuración"
       default: return "MINOS"
     }
+  }
+
+  const handleSync = () => {
+    setSyncing(true)
+    setTimeout(() => setSyncing(false), 1500)
   }
 
   return (
@@ -76,18 +86,47 @@ export function AppHeader() {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-1.5">
-          <Button variant="ghost" size="icon" className="group rounded-xl relative">
-            <RefreshCw className="size-4 text-muted-foreground transition-transform group-hover:rotate-180 duration-500" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="group rounded-xl relative"
+            onClick={handleSync}
+            disabled={syncing}
+            title="Sincronizar datos"
+          >
+            {syncing
+              ? <CheckCircle2 className="size-4 text-primary" />
+              : <RefreshCw className="size-4 text-muted-foreground transition-transform group-hover:rotate-180 duration-500" />
+            }
             <span className="sr-only">Sincronizar</span>
           </Button>
 
-          <Button variant="ghost" size="icon" className="group rounded-xl relative">
-            <Bell className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
-            <div className="absolute top-2.5 right-2.5 size-2 rounded-full bg-primary ring-2 ring-background animate-pulse" />
-            <span className="sr-only">Notificaciones</span>
-          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="group rounded-xl relative">
+                <Bell className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
+                <div className="absolute top-2.5 right-2.5 size-2 rounded-full bg-primary ring-2 ring-background animate-pulse" />
+                <span className="sr-only">Notificaciones</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 rounded-2xl p-0 overflow-hidden">
+              <div className="px-4 py-3 border-b border-border/40">
+                <p className="text-sm font-bold text-foreground">Notificaciones</p>
+              </div>
+              <div className="flex flex-col items-center justify-center py-8 gap-2 text-center px-4">
+                <Bell className="size-8 text-muted-foreground/30" />
+                <p className="text-sm font-medium text-muted-foreground">Sin notificaciones nuevas</p>
+                <p className="text-xs text-muted-foreground/60">Te avisaremos cuando haya alertas de cartera.</p>
+              </div>
+            </PopoverContent>
+          </Popover>
 
-          <Button variant="outline" size="sm" className="hidden lg:flex gap-2 rounded-xl border-primary/20 hover:bg-primary/5 hover:text-primary transition-all font-semibold">
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden lg:flex gap-2 rounded-xl border-primary/20 hover:bg-primary/5 hover:text-primary transition-all font-semibold"
+            onClick={() => router.push("/manual-entry")}
+          >
             <Plus className="size-3.5" />
             Movimiento
           </Button>
