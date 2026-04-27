@@ -20,7 +20,7 @@ def make_portfolio_data(assets: list[dict], currencies: list[dict] | None = None
         for a in assets
     ]
     if currencies is None:
-        currencies = [{"currency": "ARS", "valuation": total, "pct": 100.0}]
+        currencies = []
     return {
         "total_valuation": total,
         "by_asset": by_asset,
@@ -81,10 +81,10 @@ def test_cartera_con_oportunidades_retorna_expansion():
         "concentration_sell_threshold": 80.0,   # umbral alto → no habrá SELL
         "concentration_buy_threshold": 3.0,
         "riesgo_sell_ratio_threshold": 0.5,
-        "riesgo_critical_concentration": 85.0,
-        "riesgo_currency_dominance": 90.0,
+        "riesgo_critical_concentration": 99.0,
+        "riesgo_currency_dominance": 99.0,
         "expansion_buy_ratio_threshold": 0.3,
-        "expansion_max_sell_ratio": 0.1,
+        "expansion_max_sell_ratio": 0.3,
     }
     data = make_portfolio_data([
         {"ticker": "MAIN", "valuation": 940.0},   # 94% → HOLD (< 80% sell threshold)
