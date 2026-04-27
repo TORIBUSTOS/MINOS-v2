@@ -32,6 +32,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { motion, AnimatePresence } from "framer-motion"
 
 // ── Signal Helper (Mock for now) ──────────────────────────────────────────────
@@ -95,9 +101,16 @@ export default function TickersPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="icon" onClick={refetch} className="hover:bg-primary/5">
-            <Activity className="size-4" />
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={refetch} className="hover:bg-primary/5">
+                  <Activity className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Actualizar señales</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
@@ -124,7 +137,7 @@ export default function TickersPage() {
                 <div>
                     <p className="text-[10px] uppercase tracking-widest font-black text-muted-foreground">Más Frecuente</p>
                     <p className="text-2xl font-display font-bold leading-none">
-                        {data.sort((a,b) => b.presence - a.presence)[0]?.ticker || "-"}
+                        {data.sort((a,b) => b.presence - a.presence)[0]?.ticker || "Sin datos"}
                     </p>
                 </div>
             </div>

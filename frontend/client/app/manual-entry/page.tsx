@@ -1,16 +1,13 @@
 "use client"
 
 import React from "react"
-import { 
-  PlusCircle, 
-  Upload, 
-  FileText, 
-  CheckCircle2, 
-  AlertCircle,
-  Calendar as CalendarIcon,
-  DollarSign,
+import {
+  PlusCircle,
+  Upload,
+  FileText,
+  CheckCircle2,
   ArrowRightLeft,
-  Building2,
+  ShieldCheck,
   Trash2,
   Loader2
 } from "lucide-react"
@@ -37,6 +34,7 @@ export default function ManualEntryPage() {
   const [formData, setFormData] = React.useState({
     date: new Date().toISOString().split('T')[0],
     ticker: "",
+    operation_type: "Compra",
     amount: "",
     price: "",
     currency: "ARS",
@@ -96,7 +94,7 @@ export default function ManualEntryPage() {
   return (
     <div className="flex flex-col gap-6 animate-fade-up max-w-5xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Carga de Datos</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Carga Manual</h1>
         <p className="text-muted-foreground text-sm font-medium">Registra nuevas operaciones o importa archivos de transacciones.</p>
       </div>
 
@@ -117,7 +115,7 @@ export default function ManualEntryPage() {
             
             <form onSubmit={handleFormSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <div className="space-y-2">
-                <Label htmlFor="ticker" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Instrumento (Ticker)</Label>
+                <Label htmlFor="ticker" className="text-xs font-semibold text-muted-foreground ml-1">Instrumento (Ticker) <span className="text-destructive">*</span></Label>
                 <Input 
                     id="ticker" 
                     placeholder="Ej: AL30, AAPL, BTC" 
@@ -129,7 +127,22 @@ export default function ManualEntryPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="source" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Fuente / Bróker</Label>
+                <Label className="text-xs font-semibold text-muted-foreground ml-1">Tipo de Operación <span className="text-destructive">*</span></Label>
+                <Select value={formData.operation_type} onValueChange={(v) => setFormData({...formData, operation_type: v})}>
+                    <SelectTrigger className="rounded-xl border-border/50 bg-muted/10 h-11 font-bold">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-border/40">
+                        <SelectItem value="Compra">Compra</SelectItem>
+                        <SelectItem value="Venta">Venta</SelectItem>
+                        <SelectItem value="Transferencia">Transferencia</SelectItem>
+                        <SelectItem value="Dividendo">Dividendo</SelectItem>
+                    </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="source" className="text-xs font-semibold text-muted-foreground ml-1">Fuente / Bróker <span className="text-destructive">*</span></Label>
                 <Input 
                     id="source" 
                     placeholder="Ej: Bull Market, Binance, Caja" 
@@ -141,7 +154,7 @@ export default function ManualEntryPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="amount" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Cantidad / Nominal</Label>
+                <Label htmlFor="amount" className="text-xs font-semibold text-muted-foreground ml-1">Cantidad / Nominal</Label>
                 <Input 
                     id="amount" 
                     type="number" 
@@ -155,7 +168,7 @@ export default function ManualEntryPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="price" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Precio Unitario</Label>
+                <Label htmlFor="price" className="text-xs font-semibold text-muted-foreground ml-1">Precio Unitario</Label>
                 <Input 
                     id="price" 
                     type="number" 
@@ -170,7 +183,7 @@ export default function ManualEntryPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Moneda</Label>
+                    <Label className="text-xs font-semibold text-muted-foreground ml-1">Moneda</Label>
                     <Select value={formData.currency} onValueChange={(v) => setFormData({...formData, currency: v})}>
                         <SelectTrigger className="rounded-xl border-border/50 bg-muted/10 h-11 font-bold">
                             <SelectValue />
@@ -182,7 +195,7 @@ export default function ManualEntryPage() {
                     </Select>
                 </div>
                 <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Cartera Destino</Label>
+                    <Label className="text-xs font-semibold text-muted-foreground ml-1">Cartera Destino</Label>
                     <Select value={formData.portfolio} onValueChange={(v) => setFormData({...formData, portfolio: v})}>
                         <SelectTrigger className="rounded-xl border-border/50 bg-muted/10 h-11 font-bold">
                             <SelectValue />
@@ -197,7 +210,7 @@ export default function ManualEntryPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="date" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Fecha de Operación</Label>
+                <Label htmlFor="date" className="text-xs font-semibold text-muted-foreground ml-1">Fecha de Operación</Label>
                 <Input 
                     id="date" 
                     type="date"
@@ -229,7 +242,7 @@ export default function ManualEntryPage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 mb-8">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Bróker / Fuente</Label>
+                <Label className="text-xs font-semibold text-muted-foreground ml-1">Bróker / Fuente</Label>
                 <Input 
                     placeholder="Ej: Balanz, IOL" 
                     value={bulkConfig.source}
@@ -238,7 +251,7 @@ export default function ManualEntryPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Cartera Destino</Label>
+                <Label className="text-xs font-semibold text-muted-foreground ml-1">Cartera Destino</Label>
                 <Select value={bulkConfig.portfolio} onValueChange={(v) => setBulkConfig({...bulkConfig, portfolio: v})}>
                     <SelectTrigger className="rounded-xl border-border/50 bg-muted/10 h-10 font-bold">
                         <SelectValue />

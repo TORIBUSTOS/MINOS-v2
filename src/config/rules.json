@@ -1,0 +1,20 @@
+{
+  "concentration_sell_threshold": 30.0,
+  "concentration_buy_threshold": 3.0,
+  "riesgo_sell_ratio_threshold": 0.3,
+  "riesgo_critical_concentration": 50.0,
+  "riesgo_currency_dominance": 80.0,
+  "expansion_buy_ratio_threshold": 0.3,
+  "expansion_max_sell_ratio": 0.1,
+  "liquidity_high_threshold": 30.0,
+  "liquidity_low_threshold": 10.0,
+  "_comments": {
+    "concentration_sell_threshold": "Pct del patrimonio a partir del cual el ticker recibe SELL",
+    "concentration_buy_threshold": "Pct del patrimonio por debajo del cual el ticker recibe BUY",
+    "riesgo_sell_ratio_threshold": "Fracción de tickers con SELL que dispara estado RIESGO",
+    "riesgo_critical_concentration": "Un solo ticker con este pct o más → RIESGO inmediato",
+    "riesgo_currency_dominance": "Una moneda con este pct o más → RIESGO por concentración FX",
+    "expansion_buy_ratio_threshold": "Fracción mínima de tickers con BUY para declarar EXPANSIÓN",
+    "expansion_max_sell_ratio": "Fracción máxima de SELL tolerable para declarar EXPANSIÓN"
+  }
+}
