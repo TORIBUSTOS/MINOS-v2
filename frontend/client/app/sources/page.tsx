@@ -12,7 +12,7 @@ import {
   Wallet
 } from "lucide-react"
 import { SectionPanel, SectionHeader, GlowOrb, LoadingState, ErrorState } from "@/components/dashboard/dashboard-ui"
-import { usePortfolioSummary, usePositions } from "@/hooks/use-minos"
+import { usePortfolioSummary, usePositions, usePortfolios } from "@/hooks/use-minos"
 import { formatARS, formatPctAlloc } from "@/lib/minos-formatters"
 import { Button } from "@/components/ui/button"
 import { motion } from "motion/react"
@@ -20,6 +20,7 @@ import { motion } from "motion/react"
 export default function SourcesPage() {
   const { data: summary, loading: summaryLoading, error: summaryError, refetch: refetchSummary } = usePortfolioSummary()
   const { data: positions, loading: posLoading, error: posError, refetch: refetchPositions } = usePositions()
+  const { data: portfolios } = usePortfolios()
 
   const loading = summaryLoading || posLoading
   const error = summaryError || posError
@@ -28,10 +29,25 @@ export default function SourcesPage() {
   if (error) return <ErrorState error={error} refetch={() => { refetchSummary(); refetchPositions(); }} />
   if (!summary || !positions) return null
 
-  const sourcesWithPositions = summary.by_source.map(sourceInfo => ({
-    ...sourceInfo,
-    instruments: positions.filter(p => p.source === sourceInfo.source)
-  }))
+  // Map portfolio_id → source_name
+  const portfolioSourceMap = (portfolios ?? []).reduce<Record<number, string>>(
+    (map, p) => { map[p.id] = p.source_name ?? ""; return map },
+    {}
+  )
+
+  const sourcesWithPositions = summary.by_source.map(sourceInfo => {
+    const sourcePositions = positions.filter(
+      p => portfolioSourceMap[p.portfolio_id] === sourceInfo.source
+    )
+    return {
+      ...sourceInfo,
+      instruments: sourcePositions.map(p => ({
+        ticker: p.ticker,
+        valuation_ars: p.valuation,
+        pct: sourceInfo.valuation > 0 ? (p.valuation / sourceInfo.valuation * 100) : 0,
+      })),
+    }
+  })
 
   return (
     <div className="flex flex-col gap-6 animate-fade-up">
