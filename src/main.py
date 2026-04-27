@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from src.api.routes.ingest import router as ingest_router
+from src.api.routes.intelligence import router as intelligence_router
 from src.api.routes.market import router as market_router
 from src.api.routes.portfolio import router as portfolio_router
 from src.api.routes.positions import router as positions_router
@@ -22,3 +23,4 @@ app.include_router(positions_router)
 app.include_router(market_router)
 app.include_router(portfolio_router)
 app.include_router(tickers_router)
+app.include_router(intelligence_router)
