@@ -6,6 +6,8 @@
   "riesgo_currency_dominance": 80.0,
   "expansion_buy_ratio_threshold": 0.3,
   "expansion_max_sell_ratio": 0.1,
+  "liquidity_high_threshold": 30.0,
+  "liquidity_low_threshold": 10.0,
   "_comments": {
     "concentration_sell_threshold": "Pct del patrimonio a partir del cual el ticker recibe SELL",
     "concentration_buy_threshold": "Pct del patrimonio por debajo del cual el ticker recibe BUY",
