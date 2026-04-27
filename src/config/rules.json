@@ -1,0 +1,8 @@
+{
+  "concentration_sell_threshold": 30.0,
+  "concentration_buy_threshold": 3.0,
+  "_comments": {
+    "concentration_sell_threshold": "Pct del patrimonio total a partir del cual el ticker recibe señal SELL (sobreexposición)",
+    "concentration_buy_threshold": "Pct del patrimonio total por debajo del cual el ticker recibe señal BUY (subexposición)"
+  }
+}
