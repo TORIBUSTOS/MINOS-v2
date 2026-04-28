@@ -156,9 +156,11 @@ Ver `minos-prime/MINOS_BN_BREAKDOWN.md` para el estado completo.
 - [x] BN-015: ReallocationEngine — sugerencias de reasignación
 - [x] BN-016: API Intelligence — 3 endpoints REST (/api/v1/intelligence/)
 
-**Sprint 1 — TRACK E: Integración + Polish** 🔄
-- [x] BN-017: Integrar frontend con API real (hooks, minos-api, types, intelligence-panels)
-- [ ] BN-018: Integrar Intelligence Layer completo en FE
-- [ ] BN-019: Upload + E2E test
+**Sprint 1 — TRACK E: Integración + Polish** ✅
+- [x] BN-017: Integrar frontend con API real (hooks, minos-api, types)
+- [x] BN-018: ReallocationPanel en dashboard + signal badges en instruments
+- [x] BN-019: Drag & drop real en upload + 10 E2E pipeline tests
 
-Branch activo: `claude/minos-bn014` (PR#7 abierto) — próximo: `claude/minos-bn018` (Track E)
+**Sprint 1 CERRADO** ✅ — 19/19 BNs, 71 tests, 9 PRs mergeados (2026-04-27)
+
+Branch activo: `main` — próximo: Sprint 2 (por definir)

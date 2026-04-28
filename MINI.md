@@ -1,7 +1,7 @@
 # MINOS PRIME — BN PIPELINE
 
-**Última actualización:** 2026-04-22
-**Agente:** Kilo (ejecutando BN en lugar de Claude)
+**Última actualización:** 2026-04-27
+**Sprint 1:** CERRADO ✅
 
 ---
 
@@ -11,8 +11,8 @@
 TRACK A ─── Data Layer ──────────────────────────── [COMPLETO] ✅
 TRACK B ─── Portfolio Engine ───────────────────── [COMPLETO] ✅
 TRACK C ─── Frontend Base ───────────────────────── [COMPLETO] ✅
-TRACK D ─── Intelligence Layer ─────────────────── [PENDIENTE] ⏳
-TRACK E ─── Integración + Polish ───────────────── [PENDIENTE] ⏳
+TRACK D ─── Intelligence Layer ─────────────────── [COMPLETO] ✅
+TRACK E ─── Integración + Polish ───────────────── [COMPLETO] ✅
 ```
 
 ---
@@ -64,22 +64,35 @@ TRACK E ─── Integración + Polish ─────────────�
 
 ---
 
-### TRACK E — Integración + Polish 🔄
+### TRACK E — Integración + Polish ✅
 
-| BN | Descripción | Estado | Dependencias | Archivos |
-|----|-------------|--------|--------------|----------|
-| BN-017 | Integrar FE con API real | ✅ COMPLETO | BN-008, BN-009-012 | `use-minos.ts`, `minos-api.ts`, `types/minos.ts`, `intelligence-panels.tsx` |
-| BN-018 | Integrar Intelligence en FE | ⏳ PENDIENTE | BN-016, BN-017 | Dashboard + Tickers |
-| BN-019 | Upload + E2E test | ⏳ PENDIENTE | BN-017, BN-018 | Drag & drop + tests |
+| BN | Descripción | Estado | Archivos |
+|----|-------------|--------|----------|
+| BN-017 | Integrar FE con API real | ✅ COMPLETO | `use-minos.ts`, `minos-api.ts`, `types/minos.ts` |
+| BN-018 | Integrar Intelligence en FE | ✅ COMPLETO | `dashboard-view.tsx` (ReallocationPanel), `instruments/page.tsx` (signal badges) |
+| BN-019 | Upload drag & drop + E2E tests | ✅ COMPLETO | `manual-entry/page.tsx`, `tests/test_e2e_pipeline.py` |
 
 ---
 
 ## Resumen
 
 ```
-✅ Completados: 17/19 BN (89%)
-⏳ Pendientes:   2/19 BN (11%)
+✅ Completados: 19/19 BN (100%)
+🏁 Sprint 1 CERRADO — 2026-04-27
 ```
+
+---
+
+## Sprint 1 — Métricas finales
+
+| Métrica | Valor |
+|---------|-------|
+| BNs completados | 19/19 |
+| Tests backend | 71 pasando (0 fallos) |
+| Cobertura | 95-100% |
+| PRs mergeados | 9 |
+| Endpoints REST | 15+ |
+| Tracks completados | 5/5 |
 
 ---
 
