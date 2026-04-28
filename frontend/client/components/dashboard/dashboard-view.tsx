@@ -33,7 +33,8 @@ import {
   ResponsiveContainer,
   Cell
 } from "recharts"
-import { ShieldAlert, TrendingUp, Minus } from "lucide-react"
+import { ShieldAlert, TrendingUp, Minus, ArrowRightLeft, DollarSign as DollarCircle, Lightbulb } from "lucide-react"
+import { useReallocation } from "@/hooks/use-minos"
 
 // ── Intelligence Status Banner ────────────────────────────────────────────────
 
@@ -108,6 +109,69 @@ function IntelligenceBanner() {
         <span className="text-amber-400">{status.hold_count} HOLD</span>
         <span className="text-emerald-400">{status.buy_count} BUY</span>
       </div>
+    </motion.div>
+  )
+}
+
+// ── Reallocation Panel ────────────────────────────────────────────────────────
+
+function ReallocationPanel() {
+  const { data } = useReallocation()
+  if (!data) return null
+
+  const hasRotations = data.rotations.length > 0
+  const hasCapital = data.releasable_capital > 0
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.5 }}
+    >
+      <SectionPanel>
+        <SectionHeader title="Reasignación" subtitle="Capital liberable y rotaciones" />
+        <div className="mt-4 space-y-3">
+          {/* Releasable capital */}
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/10 border border-border/30">
+            <div className="size-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+              <DollarCircle className="size-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[9px] uppercase tracking-widest font-bold text-muted-foreground">Capital liberable</p>
+              <p className={`text-sm font-mono font-bold ${hasCapital ? "text-primary" : "text-muted-foreground"}`}>
+                {hasCapital ? formatARSCompact(data.releasable_capital) : "Sin ventas sugeridas"}
+              </p>
+            </div>
+          </div>
+
+          {/* Rotations */}
+          {hasRotations ? (
+            <div className="space-y-2">
+              <p className="text-[9px] uppercase tracking-widest font-bold text-muted-foreground px-1">Rotaciones</p>
+              {data.rotations.slice(0, 3).map((r, i) => (
+                <div key={i} className="flex items-center gap-2 px-1">
+                  <span className="text-[11px] font-bold text-rose-400 font-mono">{r.from_ticker}</span>
+                  <ArrowRightLeft className="size-3 text-muted-foreground flex-shrink-0" />
+                  <span className="text-[11px] font-bold text-emerald-400 font-mono truncate">{r.to}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-1 text-muted-foreground/60">
+              <ArrowRightLeft className="size-3.5 flex-shrink-0" />
+              <span className="text-xs">Sin rotaciones sugeridas</span>
+            </div>
+          )}
+
+          {/* Suggested action */}
+          {data.suggested_action && (
+            <div className="flex items-start gap-2 pt-1 border-t border-border/20">
+              <Lightbulb className="size-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-[11px] text-muted-foreground/80 leading-relaxed">{data.suggested_action}</p>
+            </div>
+          )}
+        </div>
+      </SectionPanel>
     </motion.div>
   )
 }
@@ -308,6 +372,7 @@ export function DashboardView() {
         <div className="space-y-6">
           <AllocationDonut data={allocationData} />
           <MarketWidget />
+          <ReallocationPanel />
         </div>
       </div>
     </div>
