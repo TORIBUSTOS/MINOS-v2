@@ -114,6 +114,49 @@ export interface AllPricesResponse {
   prices: Record<string, CachedPrice>
 }
 
+// ── Intelligence Layer (BN-013/014/015/016) ───────────────────────────────────
+
+export type SignalValue = "BUY" | "HOLD" | "SELL" | "NEUTRAL"
+export type LiquidityLevel = "ALTA" | "MEDIA" | "BAJA"
+export type PortfolioStatusValue = "EXPANSIÓN" | "NEUTRAL" | "RIESGO"
+
+export interface TickerSignal {
+  ticker: string
+  signal: SignalValue
+  reason: string
+  pct: number
+}
+
+export interface PortfolioStatus {
+  status: PortfolioStatusValue
+  insights: string[]
+  suggested_action: string
+  sell_count: number
+  buy_count: number
+  hold_count: number
+}
+
+export interface ReallocationOpportunity {
+  ticker: string
+  current_pct: number
+  suggested_action: string
+}
+
+export interface Rotation {
+  from_ticker: string
+  to: string
+  amount: number
+  reason: string
+}
+
+export interface ReallocationSuggestion {
+  releasable_capital: number
+  liquidity_level: LiquidityLevel
+  opportunities: ReallocationOpportunity[]
+  rotations: Rotation[]
+  suggested_action: string
+}
+
 // ── API endpoints map ─────────────────────────────────────────────────────────
 // Used for documentation. Actual calls go through MinosAPI class.
 
@@ -133,4 +176,8 @@ export const MINOS_ENDPOINTS = {
   allPrices:         "GET    /api/v1/market/prices",
   // Ingestion
   uploadFile:        "POST   /api/v1/ingest/upload",
+  // Intelligence
+  signals:           "GET    /api/v1/intelligence/signals",
+  portfolioStatus:   "GET    /api/v1/intelligence/portfolio-status",
+  reallocation:      "GET    /api/v1/intelligence/reallocation",
 } as const

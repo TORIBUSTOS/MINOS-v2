@@ -15,6 +15,9 @@ import type {
   PriceRefreshRequest,
   PriceRefreshResponse,
   AllPricesResponse,
+  TickerSignal,
+  PortfolioStatus,
+  ReallocationSuggestion,
 } from "@/types/minos"
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -127,6 +130,23 @@ export const MinosAPI = {
   /** GET /api/v1/market/prices — all cached prices with TTL info */
   async getAllPrices(): Promise<AllPricesResponse> {
     return request<AllPricesResponse>("/api/v1/market/prices")
+  },
+
+  // ── Intelligence ───────────────────────────────────────────────────────────
+
+  /** GET /api/v1/intelligence/signals — BUY/HOLD/SELL signal per ticker */
+  async getSignals(): Promise<TickerSignal[]> {
+    return request<TickerSignal[]>("/api/v1/intelligence/signals")
+  },
+
+  /** GET /api/v1/intelligence/portfolio-status — RIESGO/NEUTRAL/EXPANSIÓN */
+  async getPortfolioStatus(): Promise<PortfolioStatus> {
+    return request<PortfolioStatus>("/api/v1/intelligence/portfolio-status")
+  },
+
+  /** GET /api/v1/intelligence/reallocation — capital reallocation suggestions */
+  async getReallocation(): Promise<ReallocationSuggestion> {
+    return request<ReallocationSuggestion>("/api/v1/intelligence/reallocation")
   },
 
   // ── Ingestion ──────────────────────────────────────────────────────────────

@@ -14,7 +14,8 @@ import {
   Dot
 } from "lucide-react"
 import { SectionPanel, SectionHeader, GlowOrb, LoadingState, ErrorState } from "@/components/dashboard/dashboard-ui"
-import { useUnifiedTickers } from "@/hooks/use-minos"
+import { useUnifiedTickers, useSignals } from "@/hooks/use-minos"
+import type { SignalValue } from "@/types/minos"
 import { formatARS, formatPctAlloc, assetColor, getAssetCategory } from "@/lib/minos-formatters"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,17 +41,9 @@ import {
 } from "@/components/ui/tooltip"
 import { motion, AnimatePresence } from "framer-motion"
 
-// ── Signal Helper (Mock for now) ──────────────────────────────────────────────
+// ── Signal Badge ──────────────────────────────────────────────────────────────
 
-type Signal = "BUY" | "HOLD" | "SELL" | "NEUTRAL"
-
-function getTickerSignal(ticker: string): Signal {
-  const hash = ticker.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  const signals: Signal[] = ["BUY", "HOLD", "SELL", "NEUTRAL"]
-  return signals[hash % signals.length]
-}
-
-function SignalBadge({ signal }: { signal: Signal }) {
+function SignalBadge({ signal }: { signal: SignalValue }) {
   const styles = {
     BUY: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
     HOLD: "bg-amber-500/10 text-amber-500 border-amber-500/20",
@@ -69,8 +62,14 @@ function SignalBadge({ signal }: { signal: Signal }) {
 
 export default function TickersPage() {
   const { data, loading, error, refetch } = useUnifiedTickers()
+  const { data: signals } = useSignals()
   const [search, setSearch] = React.useState("")
   const [expandedTickers, setExpandedTickers] = React.useState<Record<string, boolean>>({})
+
+  const signalMap = React.useMemo(
+    () => Object.fromEntries((signals ?? []).map(s => [s.ticker, s.signal as SignalValue])),
+    [signals]
+  )
 
   if (loading && !data) return <LoadingState />
   if (error) return <ErrorState error={error} refetch={refetch} />
@@ -151,14 +150,23 @@ export default function TickersPage() {
                     <div className="flex items-center gap-1.5">
                         <div className="size-2 rounded-full bg-emerald-500" />
                         <span className="text-xs font-bold">Compra</span>
+                        <span className="text-xs font-mono text-emerald-500 font-bold">
+                          {signals ? Object.values(signalMap).filter(s => s === "BUY").length : "—"}
+                        </span>
                     </div>
                      <div className="flex items-center gap-1.5">
                         <div className="size-2 rounded-full bg-amber-500" />
                         <span className="text-xs font-bold">Mantener</span>
+                        <span className="text-xs font-mono text-amber-500 font-bold">
+                          {signals ? Object.values(signalMap).filter(s => s === "HOLD").length : "—"}
+                        </span>
                     </div>
                      <div className="flex items-center gap-1.5">
                         <div className="size-2 rounded-full bg-rose-500" />
                         <span className="text-xs font-bold">Venta</span>
+                        <span className="text-xs font-mono text-rose-500 font-bold">
+                          {signals ? Object.values(signalMap).filter(s => s === "SELL").length : "—"}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -230,7 +238,7 @@ export default function TickersPage() {
                            <span className="font-mono font-bold text-sm text-foreground">{formatARS(totalValuation)}</span>
                         </TableCell>
                         <TableCell className="text-center">
-                          <SignalBadge signal={getTickerSignal(ticker.ticker)} />
+                          <SignalBadge signal={signalMap[ticker.ticker] ?? "NEUTRAL"} />
                         </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary group/btn">
