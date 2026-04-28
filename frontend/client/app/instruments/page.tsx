@@ -13,7 +13,7 @@ import {
   Wallet
 } from "lucide-react"
 import { SectionPanel, SectionHeader, GlowOrb, LoadingState, ErrorState } from "@/components/dashboard/dashboard-ui"
-import { usePositions } from "@/hooks/use-minos"
+import { usePositions, usePortfolios, usePortfolioSummary } from "@/hooks/use-minos"
 import { formatARS, formatPctAlloc, assetColor, getAssetCategory } from "@/lib/minos-formatters"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,15 +28,32 @@ import {
 import { Badge } from "@/components/ui/badge"
 
 export default function InstrumentsPage() {
-  const { data, loading, error, refetch } = usePositions()
+  const { data: rawPositions, loading, error, refetch } = usePositions()
+  const { data: portfolios } = usePortfolios()
+  const { data: summary } = usePortfolioSummary()
   const [search, setSearch] = React.useState("")
 
-  if (loading && !data) return <LoadingState />
+  if (loading && !rawPositions) return <LoadingState />
   if (error) return <ErrorState error={error} refetch={refetch} />
-  if (!data) return null
+  if (!rawPositions) return null
 
-  const filteredData = data.filter(p => 
-    p.ticker.toLowerCase().includes(search.toLowerCase()) || 
+  // Enrich positions with portfolio name, source name, and portfolio-relative pct
+  const portfolioMap = (portfolios ?? []).reduce<Record<number, { name: string; source: string }>>(
+    (map, p) => { map[p.id] = { name: p.name, source: p.source_name ?? "" }; return map },
+    {}
+  )
+  const total = summary?.total_valuation ?? 0
+
+  const data = rawPositions.map(p => ({
+    ...p,
+    portfolio: portfolioMap[p.portfolio_id]?.name ?? "",
+    source: portfolioMap[p.portfolio_id]?.source ?? "",
+    valuation_ars: p.valuation,
+    pct: total > 0 ? (p.valuation / total * 100) : 0,
+  }))
+
+  const filteredData = data.filter(p =>
+    p.ticker.toLowerCase().includes(search.toLowerCase()) ||
     p.source.toLowerCase().includes(search.toLowerCase())
   )
 

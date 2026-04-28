@@ -20,7 +20,8 @@ import {
 } from "./dashboard-ui"
 import { AllocationDonut } from "./allocation-donut"
 import { MarketWidget } from "./market-widget"
-import { usePortfolioSummary } from "@/hooks/use-minos"
+import { usePortfolioSummary, usePortfolioStatus } from "@/hooks/use-minos"
+import type { PortfolioStatusValue } from "@/types/minos"
 import { formatARS, formatARSCompact, formatPctAlloc } from "@/lib/minos-formatters"
 import {
   BarChart,
@@ -32,6 +33,84 @@ import {
   ResponsiveContainer,
   Cell
 } from "recharts"
+import { ShieldAlert, TrendingUp, Minus } from "lucide-react"
+
+// ── Intelligence Status Banner ────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<PortfolioStatusValue, {
+  label: string
+  icon: React.ElementType
+  bg: string
+  border: string
+  text: string
+  dot: string
+}> = {
+  RIESGO: {
+    label: "RIESGO",
+    icon: ShieldAlert,
+    bg: "bg-rose-500/5",
+    border: "border-rose-500/20",
+    text: "text-rose-400",
+    dot: "bg-rose-500",
+  },
+  NEUTRAL: {
+    label: "NEUTRAL",
+    icon: Minus,
+    bg: "bg-amber-500/5",
+    border: "border-amber-500/20",
+    text: "text-amber-400",
+    dot: "bg-amber-500",
+  },
+  EXPANSIÓN: {
+    label: "EXPANSIÓN",
+    icon: TrendingUp,
+    bg: "bg-emerald-500/5",
+    border: "border-emerald-500/20",
+    text: "text-emerald-400",
+    dot: "bg-emerald-500",
+  },
+}
+
+function IntelligenceBanner() {
+  const { data: status } = usePortfolioStatus()
+  if (!status) return null
+
+  const cfg = STATUS_CONFIG[status.status]
+  const Icon = cfg.icon
+  const topInsight = status.insights[0] ?? ""
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.35 }}
+      className={`rounded-2xl border px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 ${cfg.bg} ${cfg.border}`}
+    >
+      <div className="flex items-center gap-3 flex-shrink-0">
+        <div className={`size-8 rounded-xl flex items-center justify-center ${cfg.bg} border ${cfg.border}`}>
+          <Icon className={`size-4 ${cfg.text}`} />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className={`size-2 rounded-full animate-pulse ${cfg.dot}`} />
+          <span className={`text-[10px] uppercase tracking-[0.15em] font-black ${cfg.text}`}>{cfg.label}</span>
+        </div>
+      </div>
+      <div className="flex-1 min-w-0 sm:border-l sm:border-current/10 sm:pl-4">
+        <p className="text-xs font-semibold text-foreground/80 leading-relaxed truncate">{topInsight}</p>
+        {status.suggested_action && (
+          <p className="text-[11px] text-muted-foreground/70 mt-0.5 leading-relaxed line-clamp-1">
+            {status.suggested_action}
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-3 flex-shrink-0 text-[10px] font-bold text-muted-foreground">
+        <span className="text-rose-400">{status.sell_count} SELL</span>
+        <span className="text-amber-400">{status.hold_count} HOLD</span>
+        <span className="text-emerald-400">{status.buy_count} BUY</span>
+      </div>
+    </motion.div>
+  )
+}
 
 export function DashboardView() {
   const { data, loading, error, refetch } = usePortfolioSummary()
@@ -87,6 +166,9 @@ export function DashboardView() {
           subtext="del total invertido"
         />
       </div>
+
+      {/* Intelligence Status Banner */}
+      <IntelligenceBanner />
 
       {/* Main Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

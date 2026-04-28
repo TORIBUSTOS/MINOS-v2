@@ -143,8 +143,22 @@ Ver `minos-prime/MINOS_BN_BREAKDOWN.md` para el estado completo.
 - [x] BN-008: API patrimonial — 6 endpoints REST (http://localhost:8001)
 
 **Sprint 1 — TRACK C: Frontend Base** ✅
+- [x] BN-009: Scaffold frontend + Layout
+- [x] BN-010: Vista Dashboard
+- [x] BN-011: Vista Carteras
+- [x] BN-012: Vista Tickers + Carga manual
 - [x] Frontend Local: http://localhost:4400
 - [x] Branding: MINOS Prime
 
+**Sprint 1 — TRACK D: Intelligence Layer** ✅
+- [x] BN-013: IntelligenceEngine — señales BUY/HOLD/SELL por ticker
+- [x] BN-014: DecisionEngine — estado cartera (EXPANSIÓN/NEUTRAL/RIESGO)
+- [x] BN-015: ReallocationEngine — sugerencias de reasignación
+- [x] BN-016: API Intelligence — 3 endpoints REST (/api/v1/intelligence/)
 
-Branch activo: `main` (Track A + B mergeados) — próximo: `claude/minos-bn009` (Track C) o `claude/minos-bn013` (Track D)
+**Sprint 1 — TRACK E: Integración + Polish** 🔄
+- [x] BN-017: Integrar frontend con API real (hooks, minos-api, types, intelligence-panels)
+- [ ] BN-018: Integrar Intelligence Layer completo en FE
+- [ ] BN-019: Upload + E2E test
+
+Branch activo: `claude/minos-bn014` (PR#7 abierto) — próximo: `claude/minos-bn018` (Track E)

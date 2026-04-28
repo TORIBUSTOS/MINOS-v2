@@ -20,6 +20,9 @@ import type {
   Position,
   UnifiedTicker,
   AllPricesResponse,
+  TickerSignal,
+  PortfolioStatus,
+  ReallocationSuggestion,
 } from "@/types/minos"
 
 // ── Generic hook factory ──────────────────────────────────────────────────────
@@ -121,6 +124,37 @@ export function usePositions(filters?: {
 export function useUnifiedTickers() {
   return useMinosQuery<UnifiedTicker[]>(
     () => MinosAPI.getUnifiedTickers()
+  )
+}
+
+// ── Intelligence hooks ────────────────────────────────────────────────────────
+
+/**
+ * Per-ticker BUY/HOLD/SELL signals from the Intelligence Engine.
+ * Replaces the mock hash-based signal in the Tickers page.
+ */
+export function useSignals() {
+  return useMinosQuery<TickerSignal[]>(
+    () => MinosAPI.getSignals()
+  )
+}
+
+/**
+ * Portfolio-level status: RIESGO | NEUTRAL | EXPANSIÓN.
+ * Powers the intelligence banner on the Dashboard.
+ */
+export function usePortfolioStatus() {
+  return useMinosQuery<PortfolioStatus>(
+    () => MinosAPI.getPortfolioStatus()
+  )
+}
+
+/**
+ * Capital reallocation suggestions: releasable capital, rotations, opportunities.
+ */
+export function useReallocation() {
+  return useMinosQuery<ReallocationSuggestion>(
+    () => MinosAPI.getReallocation()
   )
 }
 
