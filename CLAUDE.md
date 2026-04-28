@@ -29,11 +29,17 @@ pip install -r requirements.txt
 # Levantar API (dev)
 uvicorn src.main:app --reload --port 8800
 
-# Tests
-pytest tests/ -v
+# Levantar stack completo (Windows)
+start_minos.bat
+
+# Frontend (dev)
+cd frontend/client && npm run dev   # puerto 4400
+
+# Tests — usar py -3.12 explícitamente (las deps están en Python 3.12)
+py -3.12 -m pytest tests/ -v
 
 # Tests con coverage
-pytest tests/ --cov=src --cov-report=term-missing
+py -3.12 -m pytest tests/ --cov=src --cov-report=term-missing
 
 # Migraciones
 alembic upgrade head
@@ -89,6 +95,8 @@ minos-v2/
 - FastAPI lifespan: usar `@asynccontextmanager` + `lifespan=` en `FastAPI(...)` — `@app.on_event` está deprecado
 - `datetime.utcnow()` deprecado en Python 3.12 — usar `datetime.now(timezone.utc)` siempre
 - Fixtures compartidos en `tests/conftest.py` con helpers: `make_source`, `make_portfolio`, `make_asset`, `make_position`
+- `py -3.12 -m pytest` — NO usar `python -m pytest`, las deps están en Python 3.12 específicamente
+- Mock yfinance: patchear `src.services.market_data.yf.Ticker` + `MarketDataService._cache.clear()` en fixture autouse
 
 ---
 
@@ -99,6 +107,20 @@ minos-v2/
 - Si remote diverge: `git pull --rebase && git push`
 
 ---
+
+## Frontend
+
+- Path canónico: `frontend/client/` — toda UI nueva va ahí (reorganizado desde `v0-financial-toro-dashboard-2-main/` en PR#5, que ya no se usa)
+- Puerto: 4400 (`next dev --port 4400`)
+- API client centralizado: `frontend/client/lib/minos-api.ts` — clase `MinosAPI` con todos los métodos
+- Hooks en `frontend/client/hooks/use-minos.ts` — factory `useMinosQuery<T>` para estado loading/error/data
+- Tipos en `frontend/client/types/minos.ts`
+
+## API — Gotchas
+
+- Upload endpoint: `POST /api/v1/ingest/file` (no `/upload`, no `/ingest/upload`)
+- `/api/v1/intelligence/signals` retorna lista directa — no `{signals: [], signal_summary: {}}`
+- Antes de crear rama nueva: verificar que `main` local esté al día — si hay PRs recientes, hacer `git fetch origin && git reset --hard origin/main` para evitar diffs inflados por divergencia
 
 ## Market Data
 
