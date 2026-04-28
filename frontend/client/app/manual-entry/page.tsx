@@ -48,6 +48,15 @@ export default function ManualEntryPage() {
   })
 
   const [file, setFile] = React.useState<File | null>(null)
+  const [isDragging, setIsDragging] = React.useState(false)
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const dropped = e.dataTransfer.files?.[0]
+    if (dropped && /\.(csv|xlsx|xls)$/i.test(dropped.name)) setFile(dropped)
+    else if (dropped) toast.error("Formato no soportado. Usá .csv o .xlsx")
+  }
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -265,8 +274,18 @@ export default function ManualEntryPage() {
               </div>
             </div>
             
-            <div className="mt-8 border-2 border-dashed border-border/40 rounded-3xl p-12 flex flex-col items-center justify-center bg-muted/5 group-hover:bg-muted/10 group-hover:border-primary/30 transition-all cursor-pointer relative overflow-hidden" 
-                 onClick={() => document.getElementById('file-upload')?.click()}>
+            <div
+              className={`mt-8 border-2 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center transition-all cursor-pointer relative overflow-hidden
+                ${isDragging
+                  ? "border-primary bg-primary/5 scale-[1.01] shadow-lg shadow-primary/10"
+                  : "border-border/40 bg-muted/5 group-hover:bg-muted/10 group-hover:border-primary/30"
+                }`}
+              onClick={() => document.getElementById('file-upload')?.click()}
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+              onDragEnter={(e) => { e.preventDefault(); setIsDragging(true) }}
+              onDragLeave={(e) => { e.preventDefault(); setIsDragging(false) }}
+              onDrop={handleDrop}
+            >
               <input 
                 id="file-upload"
                 type="file" 
@@ -288,7 +307,9 @@ export default function ManualEntryPage() {
                       <Upload className="size-8" />
                     </div>
                     <div>
-                      <p className="text-base font-bold text-foreground">Arrastra o selecciona un archivo</p>
+                      <p className="text-base font-bold text-foreground">
+                        {isDragging ? "Soltá el archivo aquí" : "Arrastrá o seleccioná un archivo"}
+                      </p>
                       <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">Formato soportado: .xlsx, .csv. Máximo 10MB.</p>
                     </div>
                   </motion.div>
