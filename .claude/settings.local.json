@@ -7,7 +7,20 @@
       "Bash(python -m pip install -r requirements.txt --quiet)",
       "Bash(python -c \"import fastapi, sqlalchemy, pydantic, alembic, pandas, pytest; print\\('OK'\\)\")",
       "Bash(python -m pytest tests/test_models.py -v)",
-      "Bash(npx skills *)"
+      "Bash(npx skills *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh pr *)",
+      "Bash(git pull *)",
+      "Bash(python -m pytest tests/test_e2e_pipeline.py -v)",
+      "Bash(pip install *)",
+      "Bash(python -c \"import fastapi; print\\('fastapi ok'\\)\")",
+      "Bash(py -3.12 -c \"import fastapi; print\\('fastapi ok', fastapi.__version__\\)\")",
+      "Bash(py -3.11 -c \"import fastapi; print\\('fastapi ok'\\)\")",
+      "Bash(py -3.12 -m pytest \"C:\\\\Users\\\\mauri\\\\OneDrive\\\\Escritorio\\\\TORO\\\\_TORO _HOLDING_\\\\55 - Proyectos-TORO v2\\\\2_MINOS_v2\\\\tests\\\\test_e2e_pipeline.py\" -v)",
+      "Bash(git commit -m 'chore: sync settings.local.json *)"
     ]
   }
 }
