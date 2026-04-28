@@ -13,7 +13,8 @@ import {
   Wallet
 } from "lucide-react"
 import { SectionPanel, SectionHeader, GlowOrb, LoadingState, ErrorState } from "@/components/dashboard/dashboard-ui"
-import { usePositions, usePortfolios, usePortfolioSummary } from "@/hooks/use-minos"
+import { usePositions, usePortfolios, usePortfolioSummary, useSignals } from "@/hooks/use-minos"
+import type { SignalValue } from "@/types/minos"
 import { formatARS, formatPctAlloc, assetColor, getAssetCategory } from "@/lib/minos-formatters"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,11 +28,24 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 
+const SIGNAL_STYLE: Record<SignalValue, { label: string; className: string }> = {
+  BUY:     { label: "BUY",  className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  HOLD:    { label: "HOLD", className: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+  SELL:    { label: "SELL", className: "bg-rose-500/10 text-rose-400 border-rose-500/20" },
+  NEUTRAL: { label: "—",    className: "bg-muted/10 text-muted-foreground border-border/20" },
+}
+
 export default function InstrumentsPage() {
   const { data: rawPositions, loading, error, refetch } = usePositions()
   const { data: portfolios } = usePortfolios()
   const { data: summary } = usePortfolioSummary()
+  const { data: signals } = useSignals()
   const [search, setSearch] = React.useState("")
+
+  const signalMap = React.useMemo(
+    () => Object.fromEntries((signals ?? []).map(s => [s.ticker, s.signal as SignalValue])),
+    [signals]
+  )
 
   if (loading && !rawPositions) return <LoadingState />
   if (error) return <ErrorState error={error} refetch={refetch} />
@@ -120,13 +134,14 @@ export default function InstrumentsPage() {
                 <TableHead className="text-[10px] uppercase tracking-widest font-bold">Bróker / Fuente</TableHead>
                 <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Valuación (ARS)</TableHead>
                 <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Peso (%)</TableHead>
+                <TableHead className="text-center text-[10px] uppercase tracking-widest font-bold">Señal</TableHead>
                 <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Acción</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-48 text-center">
+                  <TableCell colSpan={6} className="h-48 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground gap-2">
                         <Wallet className="size-8 opacity-20" />
                         <p className="text-sm font-medium">No se encontraron instrumentos.</p>
@@ -142,7 +157,7 @@ export default function InstrumentsPage() {
                     <React.Fragment key={category}>
                       {/* Category Header Row */}
                       <TableRow className="bg-muted/10 hover:bg-muted/10 border-border/40">
-                        <TableCell colSpan={5} className="py-2 px-4">
+                        <TableCell colSpan={6} className="py-2 px-4">
                           <div className="flex items-center gap-2">
                             <div 
                               className="size-1.5 rounded-full shadow-[0_0_8px_currentColor]" 
@@ -194,6 +209,17 @@ export default function InstrumentsPage() {
                               </div>
                               <span className="font-mono text-[11px] font-bold text-muted-foreground">{formatPctAlloc(pos.pct)}</span>
                             </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {(() => {
+                              const sig = signalMap[pos.ticker] ?? "NEUTRAL"
+                              const style = SIGNAL_STYLE[sig]
+                              return (
+                                <Badge className={`text-[9px] font-black tracking-widest border px-2 py-0.5 ${style.className}`}>
+                                  {style.label}
+                                </Badge>
+                              )
+                            })()}
                           </TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="icon" className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary group/btn transition-all">
