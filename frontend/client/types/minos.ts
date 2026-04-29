@@ -96,12 +96,9 @@ export interface UnifiedTicker {
 
 // ── Market Data (BN-007b) ─────────────────────────────────────────────────────
 
-export interface PriceRefreshRequest {
-  tickers: string[]
-}
-
 export interface PriceRefreshResponse {
-  refreshed: Record<string, number | null>
+  refreshed: number
+  prices: Record<string, number | null>
 }
 
 export interface CachedPrice {
@@ -175,7 +172,7 @@ export const MINOS_ENDPOINTS = {
   refreshPrices:     "POST   /api/v1/market/refresh",
   allPrices:         "GET    /api/v1/market/prices",
   // Ingestion
-  uploadFile:        "POST   /api/v1/ingest/upload",
+  uploadFile:        "POST   /api/v1/ingest/file",
   // Intelligence
   signals:           "GET    /api/v1/intelligence/signals",
   portfolioStatus:   "GET    /api/v1/intelligence/portfolio-status",

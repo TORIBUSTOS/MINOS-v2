@@ -12,7 +12,7 @@ import {
   Loader2
 } from "lucide-react"
 import { SectionPanel, SectionHeader, GlowOrb } from "@/components/dashboard/dashboard-ui"
-import { useCreatePosition, useFileUpload } from "@/hooks/use-minos"
+import { useCreatePosition, useFileUpload, usePortfolios } from "@/hooks/use-minos"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -30,11 +30,11 @@ import { toast } from "sonner"
 export default function ManualEntryPage() {
   const { add: addTransaction, loading: adding } = useCreatePosition()
   const { upload: uploadFile, loading: uploading } = useFileUpload()
+  const { data: portfolios } = usePortfolios()
 
   const [formData, setFormData] = React.useState({
     date: new Date().toISOString().split('T')[0],
     ticker: "",
-    operation_type: "Compra",
     amount: "",
     price: "",
     currency: "ARS",
@@ -49,6 +49,10 @@ export default function ManualEntryPage() {
 
   const [file, setFile] = React.useState<File | null>(null)
   const [isDragging, setIsDragging] = React.useState(false)
+  const portfolioOptions = React.useMemo(() => {
+    const names = (portfolios ?? []).map((portfolio) => portfolio.name)
+    return names.length > 0 ? Array.from(new Set(names)) : ["Principal"]
+  }, [portfolios])
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -100,6 +104,21 @@ export default function ManualEntryPage() {
     }
   }
 
+  const handleTemplateDownload = () => {
+    const headers = ["ticker", "quantity", "currency", "valuation", "valuation_date"]
+    const sample = ["AL30", "100", "ARS", "50000", new Date().toISOString().split("T")[0]]
+    const csv = `${headers.join(",")}\n${sample.join(",")}\n`
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = "minos-plantilla-posiciones.csv"
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="flex flex-col gap-6 animate-fade-up max-w-5xl mx-auto">
       <div>
@@ -133,21 +152,6 @@ export default function ManualEntryPage() {
                     required
                     className="rounded-xl border-border/50 bg-muted/10 h-11 font-bold"
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-muted-foreground ml-1">Tipo de Operación <span className="text-destructive">*</span></Label>
-                <Select value={formData.operation_type} onValueChange={(v) => setFormData({...formData, operation_type: v})}>
-                    <SelectTrigger className="rounded-xl border-border/50 bg-muted/10 h-11 font-bold">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-border/40">
-                        <SelectItem value="Compra">Compra</SelectItem>
-                        <SelectItem value="Venta">Venta</SelectItem>
-                        <SelectItem value="Transferencia">Transferencia</SelectItem>
-                        <SelectItem value="Dividendo">Dividendo</SelectItem>
-                    </SelectContent>
-                </Select>
               </div>
 
               <div className="space-y-2">
@@ -210,9 +214,9 @@ export default function ManualEntryPage() {
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-border/40">
-                            <SelectItem value="Principal">Principal</SelectItem>
-                            <SelectItem value="Inversiones">Inversiones</SelectItem>
-                            <SelectItem value="Trading">Trading</SelectItem>
+                            {portfolioOptions.map((name) => (
+                              <SelectItem key={name} value={name}>{name}</SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 </div>
@@ -266,9 +270,9 @@ export default function ManualEntryPage() {
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="Principal">Principal</SelectItem>
-                        <SelectItem value="Inversiones">Inversiones</SelectItem>
-                        <SelectItem value="Trading">Trading</SelectItem>
+                        {portfolioOptions.map((name) => (
+                          <SelectItem key={name} value={name}>{name}</SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
               </div>
@@ -343,7 +347,12 @@ export default function ManualEntryPage() {
             </div>
 
             <div className="mt-8 flex flex-col md:flex-row gap-4">
-              <Button variant="outline" className="flex-1 h-11 rounded-xl font-bold border-border/50 bg-muted/10 hover:bg-muted/20 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 h-11 rounded-xl font-bold border-border/50 bg-muted/10 hover:bg-muted/20 gap-2"
+                onClick={handleTemplateDownload}
+              >
                 <FileText className="size-4" />
                 Descargar Plantilla
               </Button>

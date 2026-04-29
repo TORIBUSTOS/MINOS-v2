@@ -32,6 +32,7 @@ def list_portfolios(db: Session = Depends(get_db)):
             "id": p.id,
             "name": p.name,
             "source_id": p.source_id,
+            "source_name": p.source.name if p.source else None,
             "position_count": db.query(Position).filter_by(portfolio_id=p.id).count(),
         }
         for p in portfolios

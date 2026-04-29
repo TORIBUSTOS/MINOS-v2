@@ -66,6 +66,11 @@ export default function TickersPage() {
   const [search, setSearch] = React.useState("")
   const [expandedTickers, setExpandedTickers] = React.useState<Record<string, boolean>>({})
 
+  React.useEffect(() => {
+    const query = new URLSearchParams(window.location.search).get("q")
+    if (query) setSearch(query)
+  }, [])
+
   const signalMap = React.useMemo(
     () => Object.fromEntries((signals ?? []).map(s => [s.ticker, s.signal as SignalValue])),
     [signals]
@@ -79,9 +84,14 @@ export default function TickersPage() {
     setExpandedTickers(prev => ({ ...prev, [ticker]: !prev[ticker] }))
   }
 
-  const filteredData = data.filter(t => 
+  const sortedData = React.useMemo(
+    () => [...data].sort((a, b) => b.presence - a.presence),
+    [data]
+  )
+
+  const filteredData = sortedData.filter(t => 
     t.ticker.toLowerCase().includes(search.toLowerCase())
-  ).sort((a, b) => b.presence - a.presence)
+  )
 
   return (
     <div className="flex flex-col gap-6 animate-fade-up">
@@ -125,7 +135,7 @@ export default function TickersPage() {
                     <p className="text-2xl font-display font-bold leading-none">{data.length}</p>
                 </div>
             </div>
-            <GlowOrb color="hsl(var(--primary))" className="opacity-10" />
+            <GlowOrb className="bg-primary/10" />
         </SectionPanel>
 
         <SectionPanel className="lg:col-span-1 p-5 flex flex-col justify-between items-start gap-4 group">
@@ -136,11 +146,11 @@ export default function TickersPage() {
                 <div>
                     <p className="text-[10px] uppercase tracking-widest font-black text-muted-foreground">Más Frecuente</p>
                     <p className="text-2xl font-display font-bold leading-none">
-                        {data.sort((a,b) => b.presence - a.presence)[0]?.ticker || "Sin datos"}
+                        {sortedData[0]?.ticker || "Sin datos"}
                     </p>
                 </div>
             </div>
-            <GlowOrb color="#10b981" className="opacity-10" />
+            <GlowOrb className="bg-emerald-500/10" />
         </SectionPanel>
 
         <SectionPanel className="lg:col-span-2 p-5 flex items-center justify-between">
@@ -241,7 +251,13 @@ export default function TickersPage() {
                           <SignalBadge signal={signalMap[ticker.ticker] ?? "NEUTRAL"} />
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary group/btn">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary group/btn"
+                            onClick={() => toggleExpand(ticker.ticker)}
+                            title={`Ver detalle de ${ticker.ticker}`}
+                          >
                             <ArrowUpRight className="size-4 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
                           </Button>
                         </TableCell>

@@ -19,6 +19,13 @@ import { formatARS, formatPctAlloc, assetColor, getAssetCategory } from "@/lib/m
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Table,
   TableBody,
   TableCell,
@@ -27,6 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { useRouter } from "next/navigation"
 
 const SIGNAL_STYLE: Record<SignalValue, { label: string; className: string }> = {
   BUY:     { label: "BUY",  className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
@@ -36,11 +44,18 @@ const SIGNAL_STYLE: Record<SignalValue, { label: string; className: string }> = 
 }
 
 export default function InstrumentsPage() {
+  const router = useRouter()
   const { data: rawPositions, loading, error, refetch } = usePositions()
   const { data: portfolios } = usePortfolios()
   const { data: summary } = usePortfolioSummary()
   const { data: signals } = useSignals()
   const [search, setSearch] = React.useState("")
+  const [sourceFilter, setSourceFilter] = React.useState("all")
+
+  React.useEffect(() => {
+    const query = new URLSearchParams(window.location.search).get("q")
+    if (query) setSearch(query)
+  }, [])
 
   const signalMap = React.useMemo(
     () => Object.fromEntries((signals ?? []).map(s => [s.ticker, s.signal as SignalValue])),
@@ -66,10 +81,41 @@ export default function InstrumentsPage() {
     pct: total > 0 ? (p.valuation / total * 100) : 0,
   }))
 
-  const filteredData = data.filter(p =>
-    p.ticker.toLowerCase().includes(search.toLowerCase()) ||
-    p.source.toLowerCase().includes(search.toLowerCase())
-  )
+  const sourceOptions = Array.from(new Set(data.map((p) => p.source).filter(Boolean)))
+  const normalizedSearch = search.toLowerCase()
+  const filteredData = data.filter(p => {
+    const matchesSearch =
+      p.ticker.toLowerCase().includes(normalizedSearch) ||
+      p.source.toLowerCase().includes(normalizedSearch) ||
+      p.portfolio.toLowerCase().includes(normalizedSearch)
+    const matchesSource = sourceFilter === "all" || p.source === sourceFilter
+    return matchesSearch && matchesSource
+  })
+
+  const exportCsv = () => {
+    const headers = ["ticker", "portfolio", "source", "currency", "quantity", "valuation", "valuation_date", "signal"]
+    const rows = filteredData.map((pos) => [
+      pos.ticker,
+      pos.portfolio,
+      pos.source,
+      pos.currency,
+      pos.quantity,
+      pos.valuation,
+      pos.valuation_date,
+      signalMap[pos.ticker] ?? "NEUTRAL",
+    ])
+    const escapeCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`
+    const csv = [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\n")
+    const blob = new Blob([`${csv}\n`], { type: "text/csv;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = "minos-instrumentos.csv"
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
 
   // Group by category
   const groupedData = filteredData.reduce((acc, pos) => {
@@ -89,7 +135,14 @@ export default function InstrumentsPage() {
           <p className="text-muted-foreground text-sm font-medium">Glosa detallada de posiciones agrupadas por tipo de activo.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="rounded-xl h-9 font-bold bg-muted/10 border-border/50 hover:bg-primary/5 hover:text-primary transition-all gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-xl h-9 font-bold bg-muted/10 border-border/50 hover:bg-primary/5 hover:text-primary transition-all gap-2"
+            onClick={exportCsv}
+            disabled={filteredData.length === 0}
+          >
             <Download className="size-3.5" />
             Exportar
           </Button>
@@ -119,10 +172,18 @@ export default function InstrumentsPage() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="rounded-xl h-9 border-border/50 bg-muted/10 text-muted-foreground hover:text-foreground">
-              <Filter className="size-3.5 mr-2" />
-              Filtros
-            </Button>
+            <Filter className="size-3.5 text-muted-foreground" />
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="w-44 rounded-xl h-9 border-border/50 bg-muted/10 text-xs font-bold">
+                <SelectValue placeholder="Fuente" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las fuentes</SelectItem>
+                {sourceOptions.map((source) => (
+                  <SelectItem key={source} value={source}>{source}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -222,7 +283,13 @@ export default function InstrumentsPage() {
                             })()}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary group/btn transition-all">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary group/btn transition-all"
+                              onClick={() => router.push(`/tickers?q=${encodeURIComponent(pos.ticker)}`)}
+                              title={`Ver ${pos.ticker} en Tickers Unificados`}
+                            >
                               <ArrowUpRight className="size-4 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
                             </Button>
                           </TableCell>

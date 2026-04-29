@@ -12,7 +12,6 @@ import type {
   CurrencySummary,
   Portfolio,
   UnifiedTicker,
-  PriceRefreshRequest,
   PriceRefreshResponse,
   AllPricesResponse,
   TickerSignal,
@@ -118,12 +117,10 @@ export const MinosAPI = {
 
   // ── Market Data ────────────────────────────────────────────────────────────
 
-  /** POST /api/v1/market/refresh — force-fetch prices from yfinance */
-  async refreshPrices(tickers: string[]): Promise<PriceRefreshResponse> {
-    const body: PriceRefreshRequest = { tickers }
+  /** POST /api/v1/market/refresh — force-fetch all portfolio tickers from yfinance */
+  async refreshPrices(): Promise<PriceRefreshResponse> {
     return request<PriceRefreshResponse>("/api/v1/market/refresh", {
       method: "POST",
-      body: JSON.stringify(body),
     })
   },
 
@@ -151,7 +148,7 @@ export const MinosAPI = {
 
   // ── Ingestion ──────────────────────────────────────────────────────────────
 
-  /** POST /api/v1/ingest/upload — CSV/XLSX file upload */
+  /** POST /api/v1/ingest/file — CSV/XLSX file upload */
   async uploadFile(
     file: File,
     sourceName: string,
@@ -162,7 +159,7 @@ export const MinosAPI = {
     form.append("source_name", sourceName)
     form.append("portfolio_name", portfolioName)
     // Note: no Content-Type header — browser sets multipart boundary
-    const res = await fetch(`${BASE_URL}/api/v1/ingest/upload`, {
+    const res = await fetch(`${BASE_URL}/api/v1/ingest/file`, {
       method: "POST",
       body: form,
     })

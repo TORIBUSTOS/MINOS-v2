@@ -2,16 +2,9 @@
 
 import React from "react"
 import { motion } from "motion/react"
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  RefreshCw,
-  Search,
-  ExternalLink,
-  Loader2
-} from "lucide-react"
+import { TrendingUp, RefreshCw, Loader2 } from "lucide-react"
 import { SectionPanel, SectionHeader, GlowOrb } from "./dashboard-ui"
-import { useMarketPrices, useRefreshPrices } from "@/hooks/use-minos"
+import { triggerMinosRefresh, useMarketPrices, useRefreshPrices } from "@/hooks/use-minos"
 import { formatARS, formatRelativeTime } from "@/lib/minos-formatters"
 import { Button } from "@/components/ui/button"
 
@@ -20,12 +13,9 @@ export function MarketWidget() {
   const { refresh: triggerRefresh, loading: refreshing } = useRefreshPrices()
 
   const handleRefresh = async () => {
-    if (!marketData) return
-    const tickers = Object.keys(marketData.prices)
-    if (tickers.length > 0) {
-      await triggerRefresh(tickers)
-      refetch()
-    }
+    await triggerRefresh()
+    refetch()
+    triggerMinosRefresh()
   }
 
   const prices = marketData?.prices ? Object.entries(marketData.prices) : []
@@ -93,7 +83,12 @@ export function MarketWidget() {
       </div>
 
       <div className="mt-4 pt-4 border-t border-border/30">
-        <Button variant="outline" className="w-full h-9 rounded-xl text-xs font-bold gap-2 bg-muted/10 hover:bg-primary/5 hover:text-primary hover:border-primary/20 transition-all">
+        <Button
+          variant="outline"
+          className="w-full h-9 rounded-xl text-xs font-bold gap-2 bg-muted/10 hover:bg-primary/5 hover:text-primary hover:border-primary/20 transition-all"
+          disabled={prices.length === 0}
+          title={prices.length === 0 ? "Cargá posiciones para habilitar el monitor de mercado" : "Monitor completo pendiente de ruta dedicada"}
+        >
           <TrendingUp className="size-3.5" />
           Ver Monitor Completo
         </Button>

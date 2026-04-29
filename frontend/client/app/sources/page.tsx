@@ -16,8 +16,10 @@ import { usePortfolioSummary, usePositions, usePortfolios } from "@/hooks/use-mi
 import { formatARS, formatPctAlloc } from "@/lib/minos-formatters"
 import { Button } from "@/components/ui/button"
 import { motion } from "motion/react"
+import { useRouter } from "next/navigation"
 
 export default function SourcesPage() {
+  const router = useRouter()
   const { data: summary, loading: summaryLoading, error: summaryError, refetch: refetchSummary } = usePortfolioSummary()
   const { data: positions, loading: posLoading, error: posError, refetch: refetchPositions } = usePositions()
   const { data: portfolios } = usePortfolios()
@@ -56,7 +58,12 @@ export default function SourcesPage() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Fuentes de Capital</h1>
           <p className="text-muted-foreground text-sm font-medium">Consolidación de activos por bróker y entidad financiera.</p>
         </div>
-        <Button variant="default" size="sm" className="rounded-xl h-9 font-bold shadow-lg shadow-primary/20 gap-2">
+        <Button
+          variant="default"
+          size="sm"
+          className="rounded-xl h-9 font-bold shadow-lg shadow-primary/20 gap-2"
+          onClick={() => router.push("/manual-entry")}
+        >
           <Plus className="size-3.5" />
           Vincular Fuente
         </Button>
@@ -73,7 +80,12 @@ export default function SourcesPage() {
               Vinculá un bróker o importá un archivo CSV para ver tus fuentes de capital aquí.
             </p>
           </div>
-          <Button variant="default" size="sm" className="rounded-xl h-9 font-bold shadow-lg shadow-primary/20 gap-2 mt-2">
+          <Button
+            variant="default"
+            size="sm"
+            className="rounded-xl h-9 font-bold shadow-lg shadow-primary/20 gap-2 mt-2"
+            onClick={() => router.push("/manual-entry")}
+          >
             <Plus className="size-3.5" />
             Vincular primera fuente
           </Button>
@@ -128,11 +140,22 @@ export default function SourcesPage() {
               </div>
 
               <div className="mt-6 pt-4 border-t border-border/20 flex items-center justify-between">
-                <Button variant="ghost" size="sm" className="h-8 px-2 text-[11px] font-bold text-muted-foreground hover:text-foreground">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-[11px] font-bold text-muted-foreground hover:text-foreground"
+                  disabled
+                  title="Historial de cargas pendiente de endpoint dedicado"
+                >
                     <History className="size-3.5 mr-1.5" />
                     Historial
                 </Button>
-                <Button variant="ghost" size="sm" className="h-8 px-3 text-[11px] font-bold text-primary hover:bg-primary/10 rounded-lg group/btn">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-3 text-[11px] font-bold text-primary hover:bg-primary/10 rounded-lg group/btn"
+                  onClick={() => router.push(`/instruments?q=${encodeURIComponent(source.source)}`)}
+                >
                     Gestionar Posiciones
                     <ArrowRight className="size-3.5 ml-1.5 group-hover/btn:translate-x-1 transition-transform" />
                 </Button>

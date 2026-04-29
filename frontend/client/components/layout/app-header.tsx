@@ -27,11 +27,16 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { usePathname, useRouter } from "next/navigation"
+import { MinosAPI } from "@/lib/minos-api"
+import { triggerMinosRefresh } from "@/hooks/use-minos"
+import { useToast } from "@/hooks/use-toast"
 
 export function AppHeader() {
   const pathname = usePathname()
   const router = useRouter()
+  const { toast } = useToast()
   const [syncing, setSyncing] = React.useState(false)
+  const [search, setSearch] = React.useState("")
 
   const getPageTitle = (path: string) => {
     switch (path) {
@@ -45,9 +50,31 @@ export function AppHeader() {
     }
   }
 
-  const handleSync = () => {
+  const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const query = search.trim()
+    if (!query) return
+    router.push(`/instruments?q=${encodeURIComponent(query)}`)
+  }
+
+  const handleSync = async () => {
     setSyncing(true)
-    setTimeout(() => setSyncing(false), 1500)
+    try {
+      await MinosAPI.refreshPrices()
+      triggerMinosRefresh()
+      toast({
+        title: "Datos sincronizados",
+        description: "Se refrescaron precios, cartera, señales y vistas conectadas.",
+      })
+    } catch (error) {
+      toast({
+        title: "No se pudo sincronizar",
+        description: error instanceof Error ? error.message : "Verificá que el backend esté disponible.",
+        variant: "destructive",
+      })
+    } finally {
+      setSyncing(false)
+    }
   }
 
   return (
@@ -72,17 +99,19 @@ export function AppHeader() {
 
       <div className="flex items-center gap-4">
         {/* Search - Desktop */}
-        <div className="relative hidden md:block group">
+        <form className="relative hidden md:block group" onSubmit={handleSearch}>
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
           <Input
             type="search"
             placeholder="Buscar instrumento..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
             className="w-64 lg:w-80 h-9 pl-9 bg-muted/30 border-muted-foreground/10 focus-visible:ring-primary/20 transition-all rounded-xl"
           />
           <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex pointer-events-none text-muted-foreground/50">
             <span className="text-xs">⌘</span>K
           </kbd>
-        </div>
+        </form>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-1.5">
@@ -105,7 +134,6 @@ export function AppHeader() {
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="group rounded-xl relative">
                 <Bell className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
-                <div className="absolute top-2.5 right-2.5 size-2 rounded-full bg-primary ring-2 ring-background animate-pulse" />
                 <span className="sr-only">Notificaciones</span>
               </Button>
             </PopoverTrigger>

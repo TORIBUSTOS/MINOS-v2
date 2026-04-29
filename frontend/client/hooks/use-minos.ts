@@ -25,6 +25,14 @@ import type {
   ReallocationSuggestion,
 } from "@/types/minos"
 
+const MINOS_REFRESH_EVENT = "minos:refresh"
+
+export function triggerMinosRefresh() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(MINOS_REFRESH_EVENT))
+  }
+}
+
 // ── Generic hook factory ──────────────────────────────────────────────────────
 
 interface UseQueryResult<T> {
@@ -53,7 +61,13 @@ function useMinosQuery<T>(fetcher: () => Promise<T>): UseQueryResult<T> {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => {
+    fetch()
+    if (typeof window === "undefined") return
+
+    window.addEventListener(MINOS_REFRESH_EVENT, fetch)
+    return () => window.removeEventListener(MINOS_REFRESH_EVENT, fetch)
+  }, [fetch])
 
   return { data, loading, error, refetch: fetch }
 }
@@ -171,18 +185,18 @@ export function useMarketPrices() {
 }
 
 /**
- * Trigger a price refresh for a list of tickers.
- * Returns { refresh, loading, error } — call refresh(tickers) on demand.
+ * Trigger a price refresh for all tickers currently in the portfolio.
+ * Returns { refresh, loading, error } — call refresh() on demand.
  */
 export function useRefreshPrices() {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<MinosApiError | Error | null>(null)
 
-  const refresh = useCallback(async (tickers: string[]) => {
+  const refresh = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      return await MinosAPI.refreshPrices(tickers)
+      return await MinosAPI.refreshPrices()
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e))
       setError(err)
