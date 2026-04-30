@@ -95,8 +95,9 @@ minos-v2/
 - FastAPI lifespan: usar `@asynccontextmanager` + `lifespan=` en `FastAPI(...)` — `@app.on_event` está deprecado
 - `datetime.utcnow()` deprecado en Python 3.12 — usar `datetime.now(timezone.utc)` siempre
 - Fixtures compartidos en `tests/conftest.py` con helpers: `make_source`, `make_portfolio`, `make_asset`, `make_position`
-- `py -3.12 -m pytest` — NO usar `python -m pytest`, las deps están en Python 3.12 específicamente
+- `py -3.12 -m pytest` en Windows; `python3.11 -m pytest` en Linux/CI — las deps están instaladas en Python 3.11 en el entorno CI actual
 - Mock yfinance: patchear `src.services.market_data.yf.Ticker` + `MarketDataService._cache.clear()` en fixture autouse
+- `python-multipart` es necesario para el endpoint de upload — instalarlo con `pip install python-multipart` si falta
 
 ---
 
@@ -127,6 +128,22 @@ minos-v2/
 - yfinance aprobado (`yfinance>=0.2.54`) — acciones argentinas usan sufijo `.BA` (ej: `GGAL.BA`, `YPFD.BA`)
 - Mock en tests: patchear `src.services.market_data.yf.Ticker` (no `yfinance.Ticker`)
 - `MarketDataService._cache.clear()` en fixture `autouse=True` antes/después de cada test
+
+### Bugs conocidos — confirmados en Sprint 2 BN-DIAG (2026-04-30)
+
+Diagnóstico completo en `scripts/debug_pricing.py`. Estos bugs NO están corregidos todavía:
+
+| Bug | Descripción |
+|-----|-------------|
+| `NO_EXCHANGE_FIELD` | `Asset` y `Position` no tienen `exchange` ni `instrument_type` — imposible resolver símbolo correcto |
+| `NO_BA_SUFFIX_LOGIC` | `MarketDataService.get_price()` pasa el ticker tal cual a yfinance — `BMA` en vez de `BMA.BA`, `GGAL` en vez de `GGAL.BA` |
+| `TICKER_ALIASES_INCOMPLETO` | `ticker_aliases.json` no es exchange-aware — `"ypf" → "YPFD"` (sin `.BA`) |
+| `VALUATION_ESTATICA` | `portfolio_engine.consolidate()` usa `pos.valuation` ingested — `MarketDataService` no está integrado en valuación |
+| `NO_CURRENCY_IN_PRICE` | `get_price()` retorna solo `float`, sin moneda — `PriceCache` no almacena currency |
+| `NO_QUOTE_TIMESTAMP` | `yfinance.fast_info` no expone timestamp de cotización — solo hay `fetched_at` |
+| `FALLBACK_SILENCIOSO` | Si yfinance falla con cache vigente, retorna precio cacheado sin flag de staleness |
+
+**Decisión crítica Sprint 2:** Primero verdad financiera, después inteligencia. Ninguna señal BUY/HOLD/SELL es válida si `valuation_status != OK`.
 
 ---
 
@@ -185,4 +202,16 @@ Ver `minos-prime/MINOS_BN_BREAKDOWN.md` para el estado completo.
 
 **Sprint 1 CERRADO** ✅ — 19/19 BNs, 71 tests, 9 PRs mergeados (2026-04-27)
 
-Branch activo: `main` — próximo: Sprint 2 (por definir)
+---
+
+**Sprint 2 — Broker-Grade Valuation Core** 🔄
+
+Branch activo: `claude/minos-broker-grade-sprint-KsTZZ`
+
+Decisión de diseño: **primero verdad financiera, después inteligencia**.
+
+- [x] BN-S2-DIAG: Diagnóstico de pricing — 7 bugs estructurales confirmados (`scripts/debug_pricing.py`) — 163 tests pasando
+- [ ] BN-S2-01: `InstrumentResolver` — mapeo `(ticker, exchange) → yfinance_symbol` + campo `exchange`/`instrument_type` en `Asset`
+- [ ] BN-S2-02: `PriceResult` enriquecido — `price`, `currency`, `source`, `quote_timestamp`, `is_stale`, `valuation_status`
+- [ ] BN-S2-03: Integrar pricing live en `portfolio_engine` — `market_price × quantity`
+- [ ] BN-S2-04: `valuation_status` en API — bloquear señales si `!= OK`

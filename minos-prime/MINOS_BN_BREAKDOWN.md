@@ -408,5 +408,106 @@ A ──→ C ─────────→ E
 
 ---
 
-**Estado:** Sprint 1 CERRADO ✅ — 2026-04-28  
-**Próximo paso:** Definir scope Sprint 2 con Tori
+**Estado Sprint 1:** CERRADO ✅ — 2026-04-28
+
+---
+
+## SPRINT 2 — BROKER-GRADE VALUATION CORE 🔄
+
+**Inicio:** 2026-04-30  
+**Branch:** `claude/minos-broker-grade-sprint-KsTZZ`  
+**Decisión crítica:** Primero verdad financiera, después inteligencia. Ninguna señal BUY/HOLD/SELL es válida si `valuation_status != OK`.
+
+---
+
+### BN-S2-DIAG: Diagnóstico de Pricing ✅
+
+**Descripción:** Diagnóstico completo del sistema de pricing actual. Sin modificar lógica financiera.
+
+**Aceptación:**
+- Script ejecutable que expone el flujo real de resolución de tickers
+- Tabla con: `ticker_input | instrument_type | exchange | resolved_symbol | source | price | currency | quote_timestamp | fetched_at | is_stale | status | error`
+- Identificación explícita de bugs con categoría
+- Sin romper tests existentes
+
+**Implementado:** ✅  
+**Archivos:** `scripts/debug_pricing.py`  
+**Tests:** 163 pasando (sin regresión)  
+**Fecha:** 2026-04-30
+
+#### Bugs confirmados
+
+| Código | Archivo | Descripción |
+|--------|---------|-------------|
+| `NO_EXCHANGE_FIELD` | `src/models/asset.py`, `src/models/position.py` | Sin campo `exchange` ni `instrument_type` — imposible saber si un ticker es BYMA vs NYSE |
+| `NO_BA_SUFFIX_LOGIC` | `src/services/market_data.py:42` | `get_price(ticker)` pasa el ticker tal cual — `BMA` en vez de `BMA.BA`, `GGAL` en vez de `GGAL.BA` |
+| `TICKER_ALIASES_INCOMPLETO` | `src/config/ticker_aliases.json` | Mapea `"ypf" → "YPFD"` y `"galicia" → "GGAL"` sin sufijo `.BA` — aliases no son exchange-aware |
+| `VALUATION_ESTATICA` | `src/services/portfolio_engine.py:40` | Usa `pos.valuation` (dato ingested estático) — `MarketDataService` no integrado en valuación de cartera |
+| `NO_CURRENCY_IN_PRICE` | `src/services/market_data.py:16-19` | `PriceCache` almacena solo `price + fetched_at` — sin moneda |
+| `NO_QUOTE_TIMESTAMP` | `src/services/market_data.py` | `yfinance.fast_info` no expone timestamp de cotización — solo `fetched_at` |
+| `FALLBACK_SILENCIOSO` | `src/services/market_data.py:45-46` | Retorna precio cacheado sin flag de staleness cuando yfinance falla |
+
+---
+
+### BN-S2-01: InstrumentResolver — pendiente ⏳
+
+**Descripción:** Resolver que mapea `(ticker, exchange, instrument_type) → yfinance_symbol`. Prerequisito de todos los BNs de pricing.
+
+**Aceptación:**
+- Agregar campos `exchange` (BYMA/NYSE/NASDAQ/etc.) e `instrument_type` (EQUITY/CEDEAR/BOND) a `Asset`
+- Migración Alembic
+- Clase `InstrumentResolver` en `src/services/`
+- `BYMA + EQUITY` → `ticker + ".BA"`
+- `NYSE/NASDAQ + EQUITY` → ticker sin cambio
+- CEDEAR → `ticker + ".BA"` (o sufijo según regla a definir)
+- Tests unitarios completos
+- **No rompe `MarketDataService` existente hasta BN-S2-02**
+
+---
+
+### BN-S2-02: PriceResult enriquecido — pendiente ⏳
+
+**Descripción:** Reemplazar `Optional[float]` por `PriceResult` dataclass con metadata completa.
+
+**Aceptación:**
+- `PriceResult`: `price`, `currency`, `source`, `quote_timestamp`, `is_stale`, `valuation_status`
+- `valuation_status`: `OK | STALE | ERROR | NO_DATA`
+- `MarketDataService.get_price_result(ticker, exchange, instrument_type) → PriceResult`
+- `PriceCache` actualizado para almacenar moneda y timestamp de cotización
+- Backward compatible con endpoint existente `/api/v1/market/prices`
+
+---
+
+### BN-S2-03: Valuación dinámica en portfolio_engine — pendiente ⏳
+
+**Descripción:** Integrar precios live en la consolidación de cartera.
+
+**Aceptación:**
+- `portfolio_engine.consolidate()` multiplica `market_price × quantity` en vez de usar `pos.valuation` estático
+- Retorna `valuation_status` por ticker (OK/STALE/ERROR)
+- Cartera con cualquier ticker en estado ERROR → alerta en response
+- Mantener `pos.valuation` como fallback de último recurso (con `valuation_status = STALE`)
+
+---
+
+### BN-S2-04: valuation_status en API e Intelligence — pendiente ⏳
+
+**Descripción:** Exponer `valuation_status` en la API y bloquear señales de inteligencia si los precios no son confiables.
+
+**Aceptación:**
+- `GET /api/v1/portfolio/summary` incluye `valuation_status` global
+- `IntelligenceEngine` recibe `valuation_status` por ticker
+- Señal marcada como `INVALID` si `valuation_status != OK`
+- Frontend muestra advertencia cuando hay tickers con precio no confiable
+
+---
+
+## RESUMEN SPRINT 2
+
+| BN | Descripción | Estado | Tests |
+|----|-------------|--------|-------|
+| S2-DIAG | Diagnóstico de pricing | ✅ | 163 (sin regresión) |
+| S2-01 | InstrumentResolver | ⏳ | — |
+| S2-02 | PriceResult enriquecido | ⏳ | — |
+| S2-03 | Valuación dinámica | ⏳ | — |
+| S2-04 | valuation_status en API | ⏳ | — |
