@@ -57,8 +57,39 @@ export interface PositionManualCreate {
 export interface AssetSummary {
   ticker: string
   valuation: number
+  market_value?: number
+  cost_basis?: number
+  pnl_absolute?: number
+  pnl_percentage?: number
+  portfolio_weight?: number
+  valuation_status?: string
+  valuation_trace?: ValuationTrace
+  valuation_traces?: ValuationTrace[]
   pct: number
   portfolios: string[]            // list of portfolio names holding this asset
+}
+
+export interface ValuationTrace {
+  input_ticker?: string
+  resolved_symbol?: string
+  source?: string
+  price?: number | null
+  currency?: Currency | string
+  timestamp?: string | null
+  fetched_at?: string | null
+  instrument_type?: string | null
+  exchange?: string | null
+  quote_unit?: string
+  status?: string
+  valuation_status?: string
+  is_stale?: boolean
+  error?: string | null
+  quantity?: number
+  avg_cost?: number
+  market_value?: number
+  cost_basis?: number
+  pnl_absolute?: number
+  pnl_percentage?: number
 }
 
 export interface SourceSummary {
@@ -120,6 +151,10 @@ export type PortfolioStatusValue = "EXPANSIÓN" | "NEUTRAL" | "RIESGO"
 export interface TickerSignal {
   ticker: string
   signal: SignalValue
+  signal_status?: string
+  is_actionable?: boolean
+  valuation_status?: string | null
+  block_reason?: string | null
   reason: string
   pct: number
 }

@@ -124,3 +124,33 @@ RIESGOS:
 PRÓXIMO BN:
 BN-S2-05 — UI broker-like mínima
 ==============================
+
+==============================
+BN: BN-S2-05 — UI broker-like mínima
+Agente: CODEX
+Fecha: 2026-05-01
+Branch: codex/bn-s2-05
+
+ARCHIVOS MODIFICADOS:
+- frontend/client/app/instruments/page.tsx
+- frontend/client/types/minos.ts
+- minos-prime/execution_log.txt
+
+ARCHIVOS NO TOCADOS:
+- src/services/**
+- models
+- migrations
+
+RESULTADO:
+- La vista Instrumentos muestra una tabla broker-like basada en portfolio summary / by_asset.
+- Columnas visibles: ticker, quantity, price, price_timestamp/fetched_at, avg_cost, market_value, cost_basis, pnl_absolute, pnl_percentage, portfolio_weight y valuation_status.
+- valuation_status distinto de OK se muestra con badge rojo; las señales quedan como columna secundaria y visualmente atenuada.
+- npm run build: passed.
+- .\node_modules\.bin\tsc.cmd --noEmit: passed.
+- npm run lint: no ejecutable eslint instalado en node_modules local.
+
+RIESGOS:
+- Si el backend no entrega valuation_trace/valuation_traces para un activo, la UI muestra "-" en precio, nominales, PPC y fecha, sin inventar datos.
+- La columna fuente usa la fuente de pricing del valuation_trace porque by_asset no expone broker/source operativo por ticker.
+
+==============================
