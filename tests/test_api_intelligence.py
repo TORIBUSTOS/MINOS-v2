@@ -75,6 +75,8 @@ def test_signals_cada_item_tiene_campos_requeridos(client, db_session):
     for item in body:
         assert "ticker" in item
         assert "signal" in item
+        assert "signal_status" in item
+        assert "is_actionable" in item
         assert "reason" in item
         assert "pct" in item
 
@@ -105,6 +107,43 @@ def test_signals_contiene_todos_los_tickers(client, db_session):
     body = client.get("/api/v1/intelligence/signals").json()
     tickers = {item["ticker"] for item in body}
     assert {"MELI", "GGAL", "AL30"} == tickers
+
+
+def test_signals_api_expone_bloqueo_por_valuation_status(monkeypatch, client):
+    def fake_consolidate(db):
+        return {
+            "total_valuation": 1000.0,
+            "by_asset": [
+                {
+                    "ticker": "MELI",
+                    "valuation": 600.0,
+                    "pct": 60.0,
+                    "portfolios": ["Principal"],
+                    "valuation_status": "NO_DYNAMIC_QUOTE",
+                },
+                {
+                    "ticker": "GGAL",
+                    "valuation": 400.0,
+                    "pct": 40.0,
+                    "portfolios": ["Principal"],
+                    "valuation_status": "OK",
+                },
+            ],
+            "by_source": [],
+            "by_currency": [],
+        }
+
+    monkeypatch.setattr("src.api.routes.intelligence.consolidate", fake_consolidate)
+
+    body = client.get("/api/v1/intelligence/signals").json()
+    meli = next(item for item in body if item["ticker"] == "MELI")
+
+    assert meli["signal"] == "SELL"
+    assert meli["signal_status"] == "BLOCKED_BY_VALUATION"
+    assert meli["is_actionable"] is False
+    assert meli["valuation_status"] == "NO_DYNAMIC_QUOTE"
+    assert "NO_DYNAMIC_QUOTE" in meli["block_reason"]
+    assert "bloqueada" in meli["reason"].lower()
 
 
 # ── GET /api/v1/intelligence/portfolio-status ─────────────────────────────────

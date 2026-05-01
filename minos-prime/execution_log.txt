@@ -88,3 +88,39 @@ RIESGOS RESTANTES:
 - El quote dinámico depende de que ingestion/manual load clasifique correctamente Asset.asset_type como EQUITY.
 - La rama codex/bn-s2-03 todavía hereda cambios BN-S2-02 si se compara directo contra main; conviene abrir PR con base adecuada o separar ramas antes de merge.
 ==============================
+
+==============================
+BN: BN-S2-04 — valuation_status bloquea Intelligence
+Agente: CODEX
+Fecha: 2026-05-01
+Branch: codex/bn-s2-04
+
+ARCHIVOS MODIFICADOS:
+- src/services/intelligence.py
+- src/schemas/intelligence.py
+- tests/test_intelligence.py
+- tests/test_api_intelligence.py
+- minos-prime/execution_log.txt
+
+ARCHIVOS NO TOCADOS:
+- frontend/client/**
+- src/services/market_data.py
+- modelos/migraciones
+
+TESTS:
+- py -3.12 -m pytest tests/test_intelligence.py tests/test_api_intelligence.py -v: 37 passed
+- py -3.12 -m pytest tests/ -v: 182 passed
+
+RESULTADO:
+- IntelligenceEngine lee valuation_status cuando viene disponible en by_asset.
+- Si valuation_status existe y es distinto de OK, la señal conserva su signal calculada pero queda signal_status=BLOCKED_BY_VALUATION e is_actionable=False.
+- La API /api/v1/intelligence/signals expone signal_status, is_actionable, valuation_status y block_reason.
+- Si valuation_status es OK o no viene disponible, el comportamiento actual se mantiene.
+- No se avanzó a BN-S2-05.
+
+RIESGOS:
+- DecisionEngine y ReallocationEngine siguen contando signal cruda para mantener alcance de BN-S2-04; el bloqueo accionable está expuesto en /signals.
+
+PRÓXIMO BN:
+BN-S2-05 — UI broker-like mínima
+==============================

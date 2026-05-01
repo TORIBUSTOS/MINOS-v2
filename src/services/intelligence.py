@@ -6,6 +6,9 @@ import json
 from pathlib import Path
 
 _RULES_PATH = Path(__file__).parent.parent / "config" / "rules.json"
+VALUATION_STATUS_OK = "OK"
+SIGNAL_STATUS_ACTIONABLE = "ACTIONABLE"
+SIGNAL_STATUS_BLOCKED_BY_VALUATION = "BLOCKED_BY_VALUATION"
 
 
 def _load_rules() -> dict:
@@ -39,6 +42,17 @@ class IntelligenceEngine:
     def rules(self) -> dict:
         return self._rules
 
+    @staticmethod
+    def _valuation_status(asset: dict) -> str | None:
+        return asset.get("valuation_status")
+
+    @staticmethod
+    def _block_reason(ticker: str, valuation_status: str) -> str:
+        return (
+            f"Señal bloqueada para {ticker}: valuation_status={valuation_status}. "
+            "La valuación no es confiable para una decisión accionable."
+        )
+
     def evaluate_tickers(self, portfolio_data: dict) -> list[dict]:
         """
         Recibe el output de portfolio_engine.consolidate() y retorna señales.
@@ -64,6 +78,7 @@ class IntelligenceEngine:
         for asset in by_asset:
             ticker = asset["ticker"]
             pct = asset["pct"]
+            valuation_status = self._valuation_status(asset)
 
             if pct > sell_threshold:
                 signal = "SELL"
@@ -84,9 +99,23 @@ class IntelligenceEngine:
                     f"Dentro del rango [{buy_threshold}%, {sell_threshold}%]."
                 )
 
+            signal_status = SIGNAL_STATUS_ACTIONABLE
+            is_actionable = True
+            block_reason = None
+
+            if valuation_status is not None and valuation_status != VALUATION_STATUS_OK:
+                signal_status = SIGNAL_STATUS_BLOCKED_BY_VALUATION
+                is_actionable = False
+                block_reason = self._block_reason(ticker, valuation_status)
+                reason = f"{reason} {block_reason}"
+
             results.append({
                 "ticker": ticker,
                 "signal": signal,
+                "signal_status": signal_status,
+                "is_actionable": is_actionable,
+                "valuation_status": valuation_status,
+                "block_reason": block_reason,
                 "reason": reason,
                 "pct": pct,
             })

@@ -4,6 +4,10 @@ from pydantic import BaseModel
 class TickerSignal(BaseModel):
     ticker: str
     signal: str
+    signal_status: str = "ACTIONABLE"
+    is_actionable: bool = True
+    valuation_status: str | None = None
+    block_reason: str | None = None
     reason: str
     pct: float
 
