@@ -1,0 +1,52 @@
+==============================
+BN: BN-S2-02 — PriceResult / Quote enriquecido
+Agente: CODEX
+Fecha: 2026-04-30
+Branch: codex/bn-s2-02
+
+ARCHIVOS MODIFICADOS:
+- src/services/market_data.py
+- tests/test_market_data.py
+- tests/test_instrument_resolver.py
+- scripts/debug_pricing.py
+- minos-prime/execution_log.txt
+
+ARCHIVOS NO TOCADOS:
+- src/services/portfolio_engine.py
+- src/services/intelligence.py
+- frontend/client/**
+- modelos/migraciones
+- reglas de señales
+
+TESTS:
+- py -3.12 -m pytest tests/test_market_data.py tests/test_instrument_resolver.py: 23 passed
+- py -3.12 -m pytest tests/: 175 passed
+
+DEBUG_PRICING:
+- Ejecutado con: py -3.12 scripts/debug_pricing.py
+- Salida:
+  ticker_input | instrument_type | exchange | resolved_symbol | source | price | currency | quote_timestamp | fetched_at | is_stale | status | error
+  BMA | EQUITY | BYMA | BMA.BA | yfinance | 10840.0 | ARS | 2026-04-30T19:05:30.030990+00:00 | 2026-04-30T19:05:30.030990+00:00 | False | OK | None
+  YPFD | EQUITY | BYMA | YPFD.BA | yfinance | 67175.0 | ARS | 2026-04-30T19:05:31.460372+00:00 | 2026-04-30T19:05:31.460372+00:00 | False | OK | None
+  GGAL | EQUITY | BYMA | GGAL.BA | yfinance | 6200.0 | ARS | 2026-04-30T19:05:32.123928+00:00 | 2026-04-30T19:05:32.123928+00:00 | False | OK | None
+  PAMP | EQUITY | BYMA | PAMP.BA | yfinance | 4927.5 | ARS | 2026-04-30T19:05:32.551081+00:00 | 2026-04-30T19:05:32.551081+00:00 | False | OK | None
+  SUPV | EQUITY | BYMA | SUPV.BA | yfinance | 2480.0 | ARS | 2026-04-30T19:05:32.956309+00:00 | 2026-04-30T19:05:32.956309+00:00 | False | OK | None
+
+RESULTADO:
+- Market data expone PriceResult con input_ticker, resolved_symbol, source, price, currency, timestamp, fetched_at, instrument_type, exchange, quote_unit, status, is_stale y error
+- BYMA EQUITY mantiene resolución con sufijo .BA
+- BMA -> BMA.BA
+- YPFD -> YPFD.BA
+- Si yfinance falla sin cache, status es FETCH_ERROR y price queda None
+- Si yfinance falla con cache vencido, status es STALE e is_stale queda True
+- get_price y refresh_prices mantienen compatibilidad devolviendo float/None
+- No se avanzó a BN-S2-03
+
+RIESGOS:
+- yfinance puede no exponer timestamp real de mercado para todos los símbolos; en ese caso se usa fetched_at como timestamp trazable
+- pricing aún depende de disponibilidad y consistencia de yfinance
+- CEDEAR/bonos/FX fuera de scope
+
+PRÓXIMO BN:
+BN-S2-03 — Valuación dinámica broker-grade en PortfolioEngine
+==============================

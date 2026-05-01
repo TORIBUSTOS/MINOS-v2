@@ -125,7 +125,7 @@ El diagnóstico debe decir explícitamente:
 
 # BN-S2-01 — InstrumentResolver mínimo para acciones BYMA
 
-**Estado:** Pendiente.  
+**Estado:** Completado/incorporado en `codex/bn-s2-02` el 2026-04-30. Ver `CODEX.md` y `minos-prime/execution_log.txt`.
 **Tipo:** Fix mínimo.  
 **Agente recomendado:** AG.  
 **Validador:** Gemini o Claude.
@@ -208,7 +208,7 @@ No avanzar a BN-S2-02.
 
 # BN-S2-02 — PriceResult / Quote enriquecido
 
-**Estado:** Pendiente.  
+**Estado:** Completado en `codex/bn-s2-02` el 2026-04-30. Ver `CODEX.md` y `minos-prime/execution_log.txt`.
 **Tipo:** Estructura de dato de pricing.  
 **Depende de:** BN-S2-01 aprobado.
 
