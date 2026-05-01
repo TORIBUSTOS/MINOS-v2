@@ -50,3 +50,41 @@ RIESGOS:
 PRÓXIMO BN:
 BN-S2-03 — Valuación dinámica broker-grade en PortfolioEngine
 ==============================
+
+==============================
+BN: BN-S2-03 — Ajuste post-review local
+Agente: CODEX
+Fecha: 2026-05-01
+Branch: codex/bn-s2-03
+
+HALLAZGOS CORREGIDOS:
+- _quote_context ya no asume que toda posición ARS es BYMA/EQUITY.
+- Quote dinámico queda limitado a assets explícitamente marcados como EQUITY.
+- Activos ARS no equity, como AL30/GD30, usan fallback persistido con valuation_status NO_DYNAMIC_QUOTE.
+- valuation_trace mantiene forma estable como resumen dict y se agrega valuation_traces siempre lista.
+- Tests golden BMA/YPFD ampliados con portfolio_weight, quantity, avg_cost, resolved_symbol, price, currency, status, timestamp/fetched_at y valuation_traces.
+- Agregado test AL30 no equity para asegurar que no se resuelve ciegamente como AL30.BA.
+
+ARCHIVOS MODIFICADOS EN AJUSTE:
+- src/services/portfolio_engine.py
+- tests/test_portfolio_engine.py
+- minos-prime/execution_log.txt
+
+ARCHIVOS NO TOCADOS EN AJUSTE:
+- frontend/client/**
+- src/services/intelligence.py
+- src/services/market_data.py
+- modelos/migraciones
+
+TESTS:
+- py -3.12 -m pytest tests/test_portfolio_engine.py tests/test_api_portfolio.py tests/test_api_intelligence.py tests/test_market_data.py tests/test_instrument_resolver.py -v: 72 passed
+- py -3.12 -m pytest tests/ -v: 178 passed
+
+RESULTADO:
+- BN-S2-03 queda ajustado tras review local.
+- No se avanzó a BN-S2-04.
+
+RIESGOS RESTANTES:
+- El quote dinámico depende de que ingestion/manual load clasifique correctamente Asset.asset_type como EQUITY.
+- La rama codex/bn-s2-03 todavía hereda cambios BN-S2-02 si se compara directo contra main; conviene abrir PR con base adecuada o separar ramas antes de merge.
+==============================

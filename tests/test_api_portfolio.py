@@ -2,7 +2,35 @@
 BN-008: Tests de la API de consulta patrimonial.
 Correr con: pytest tests/test_api_portfolio.py -v
 """
+from datetime import datetime, timezone
+
+import pytest
+
+from src.services.market_data import PriceResult
 from tests.conftest import make_asset, make_portfolio, make_position, make_source
+
+
+@pytest.fixture(autouse=True)
+def no_live_quotes(monkeypatch):
+    def fake_get_quote(ticker, exchange=None, instrument_type=None):
+        now = datetime(2026, 4, 30, tzinfo=timezone.utc)
+        return PriceResult(
+            input_ticker=ticker,
+            resolved_symbol=ticker,
+            source="test",
+            price=None,
+            currency="ARS",
+            timestamp=None,
+            fetched_at=now,
+            instrument_type=instrument_type,
+            exchange=exchange,
+            quote_unit="PRICE",
+            status="FETCH_ERROR",
+            is_stale=False,
+            error="test quote unavailable",
+        )
+
+    monkeypatch.setattr("src.services.portfolio_engine.MarketDataService.get_quote", fake_get_quote)
 
 
 def _seed(db_session):
