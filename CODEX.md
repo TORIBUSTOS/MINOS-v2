@@ -222,3 +222,149 @@ Commit:
 5. Mover demos/mocks fuera de rutas productivas.
 6. Agregar una verificacion automatica simple para detectar `<Button>` sin accion ni `disabled`.
 
+---
+
+## Sprint 2 - Pricing Core
+
+**Ultima actualizacion:** 2026-04-30
+**Branch actual de trabajo:** `codex/bn-s2-02`
+**BN ejecutado:** `BN-S2-02 - PriceResult / Quote enriquecido`
+
+Documentos de gobierno leidos antes de ejecutar:
+
+- `minos-prime/SPRINT_2_EXECUTION_ORDER.md`
+- `minos-prime/MINOS_BN_BREAKDOWN.md`
+- `CLAUDE.md`
+- `minos-prime/execution_log.txt` si existe en la rama
+
+Reglas de alcance activas:
+
+- No avanzar a `BN-S2-03` hasta aprobacion.
+- No tocar UI.
+- No tocar `src/services/intelligence.py` ni reglas de signals.
+- No tocar `src/services/portfolio_engine.py`, salvo compatibilidad minima si tests lo exigen.
+- No agregar dependencias.
+- No tocar modelos ni migraciones.
+- Mantener compatibilidad con tests existentes.
+
+### Estado BN-S2-01 en esta rama
+
+La rama `codex/bn-s2-02` no tenia incorporados los cambios previos de `BN-S2-01` al comenzar el trabajo. Para que BN-S2-02 mantuviera el contrato requerido, se incorporo dentro de archivos permitidos el resolver minimo:
+
+```python
+def resolve_symbol(ticker: str, exchange: str | None = None, instrument_type: str | None = None) -> str:
+    if exchange == "BYMA" and instrument_type == "EQUITY":
+        return f"{ticker}.BA"
+    return ticker
+```
+
+Casos cubiertos:
+
+- `BMA + BYMA + EQUITY -> BMA.BA`
+- `YPFD + BYMA + EQUITY -> YPFD.BA`
+- `GGAL + BYMA + EQUITY -> GGAL.BA`
+- `PAMP + BYMA + EQUITY -> PAMP.BA`
+- `SUPV + BYMA + EQUITY -> SUPV.BA`
+- `BMA + NYSE + EQUITY -> BMA`
+- `YPF + NYSE + EQUITY -> YPF`
+
+### Trabajo BN-S2-02 Realizado
+
+`src/services/market_data.py` ahora expone un resultado trazable:
+
+```python
+@dataclass
+class PriceResult:
+    input_ticker: str
+    resolved_symbol: str
+    source: str
+    price: Decimal | None
+    currency: str
+    timestamp: datetime | None
+    fetched_at: datetime
+    instrument_type: str | None
+    exchange: str | None
+    quote_unit: str
+    status: str
+    is_stale: bool
+    error: str | None
+```
+
+Metodos relevantes:
+
+- `MarketDataService.get_quote(ticker, exchange=None, instrument_type=None) -> PriceResult`
+- `MarketDataService.refresh_quotes(tickers) -> dict[str, PriceResult]`
+- `MarketDataService.get_price(...) -> float | None` se mantiene por compatibilidad.
+- `MarketDataService.refresh_prices(...) -> dict[str, float | None]` se mantiene por compatibilidad.
+
+Estados implementados:
+
+- `OK`: fetch exitoso desde yfinance.
+- `CACHED`: cache vigente usado explicitamente.
+- `STALE`: yfinance fallo y se devolvio cache vencido con `is_stale=True`.
+- `FETCH_ERROR`: yfinance fallo sin cache; `price=None`, nunca `price=0` silencioso.
+
+Notas de diseno:
+
+- Dinero/precios nuevos se guardan en `Decimal` dentro de `PriceResult`.
+- `currency` viene de `fast_info.currency` cuando existe.
+- Para BYMA o simbolos `.BA`, si yfinance no informa moneda, se usa `ARS`.
+- Para el resto, fallback conservador `USD`.
+- `timestamp` usa `fast_info.last_trade_time` o `fast_info.last_price_time` si existe; si no existe, usa `fetched_at` como timestamp trazable.
+
+### Archivos Tocadas En BN-S2-02
+
+- `src/services/market_data.py`
+- `tests/test_market_data.py`
+- `tests/test_instrument_resolver.py`
+- `scripts/debug_pricing.py`
+- `minos-prime/execution_log.txt`
+- `CODEX.md`
+
+Archivos que no se tocaron:
+
+- `src/services/portfolio_engine.py`
+- `src/services/intelligence.py`
+- `frontend/client/**`
+- modelos/migraciones
+- reglas de señales
+
+### Tests BN-S2-02
+
+Comandos ejecutados:
+
+```bash
+py -3.12 -m pytest tests/test_market_data.py tests/test_instrument_resolver.py
+py -3.12 -m pytest tests/
+py -3.12 scripts/debug_pricing.py
+```
+
+Resultados:
+
+- `tests/test_market_data.py tests/test_instrument_resolver.py`: 23 passed.
+- `tests/`: 175 passed.
+- `debug_pricing.py`: ejecuto OK con resultados trazables para BMA, YPFD, GGAL, PAMP y SUPV.
+
+Salida relevante de debug:
+
+```text
+BMA | EQUITY | BYMA | BMA.BA | yfinance | 10840.0 | ARS | 2026-04-30T19:05:30.030990+00:00 | 2026-04-30T19:05:30.030990+00:00 | False | OK | None
+YPFD | EQUITY | BYMA | YPFD.BA | yfinance | 67175.0 | ARS | 2026-04-30T19:05:31.460372+00:00 | 2026-04-30T19:05:31.460372+00:00 | False | OK | None
+```
+
+### Riesgos Pendientes
+
+- yfinance puede no exponer timestamp real de mercado para todos los simbolos; en ese caso se usa `fetched_at`.
+- Pricing depende de disponibilidad y consistencia de yfinance.
+- CEDEAR, bonos y FX siguen fuera de scope.
+- `portfolio_engine.py` todavia no consume `PriceResult`; eso corresponde a `BN-S2-03`.
+
+### Continuacion Recomendada
+
+No avanzar a `BN-S2-03` sin aprobacion explicita. Cuando se apruebe:
+
+- Leer nuevamente `minos-prime/SPRINT_2_EXECUTION_ORDER.md`.
+- Revisar `minos-prime/execution_log.txt`.
+- Usar `PriceResult` desde `MarketDataService.get_quote`.
+- Implementar valuacion broker-grade en `src/services/portfolio_engine.py`.
+- Mantener uso de `Decimal` para formulas financieras.

@@ -1,21 +1,18 @@
 "use client"
 
 import React from "react"
-import { 
-  Search, 
-  Filter, 
-  Download, 
-  RefreshCw,
+import {
   ArrowUpRight,
-  TrendingUp,
-  TrendingDown,
-  Building2,
-  Wallet
+  Download,
+  Filter,
+  RefreshCw,
+  Search,
+  Wallet,
 } from "lucide-react"
-import { SectionPanel, SectionHeader, GlowOrb, LoadingState, ErrorState } from "@/components/dashboard/dashboard-ui"
-import { usePositions, usePortfolios, usePortfolioSummary, useSignals } from "@/hooks/use-minos"
-import type { SignalValue } from "@/types/minos"
-import { formatARS, formatPctAlloc, assetColor, getAssetCategory } from "@/lib/minos-formatters"
+import { useRouter } from "next/navigation"
+
+import { ErrorState, GlowOrb, LoadingState, SectionPanel } from "@/components/dashboard/dashboard-ui"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -33,24 +30,86 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { useRouter } from "next/navigation"
+import { usePortfolioSummary, useSignals } from "@/hooks/use-minos"
+import { assetColor, formatARS, formatPct, formatPctAlloc, formatQty, formatRelativeTime, getAssetCategory } from "@/lib/minos-formatters"
+import type { AssetSummary, SignalValue, ValuationTrace } from "@/types/minos"
+
+type BrokerRow = {
+  ticker: string
+  category: string
+  quantity: number | null
+  price: number | null
+  priceTime: string | null
+  avgCost: number | null
+  marketValue: number
+  costBasis: number
+  pnlAbsolute: number
+  pnlPercentage: number
+  portfolioWeight: number
+  valuationStatus: string
+  pricingSource: string
+  portfolios: string[]
+}
 
 const SIGNAL_STYLE: Record<SignalValue, { label: string; className: string }> = {
-  BUY:     { label: "BUY",  className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-  HOLD:    { label: "HOLD", className: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
-  SELL:    { label: "SELL", className: "bg-rose-500/10 text-rose-400 border-rose-500/20" },
-  NEUTRAL: { label: "—",    className: "bg-muted/10 text-muted-foreground border-border/20" },
+  BUY: { label: "BUY", className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  HOLD: { label: "HOLD", className: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+  SELL: { label: "SELL", className: "bg-rose-500/10 text-rose-400 border-rose-500/20" },
+  NEUTRAL: { label: "-", className: "bg-muted/10 text-muted-foreground border-border/20" },
+}
+
+function firstTrace(asset: AssetSummary): ValuationTrace {
+  return asset.valuation_trace ?? asset.valuation_traces?.[0] ?? {}
+}
+
+function numberOrNull(value: number | null | undefined): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null
+}
+
+function brokerRowFromAsset(asset: AssetSummary): BrokerRow {
+  const trace = firstTrace(asset)
+  return {
+    ticker: asset.ticker,
+    category: getAssetCategory(asset.ticker),
+    quantity: numberOrNull(trace.quantity),
+    price: numberOrNull(trace.price),
+    priceTime: trace.timestamp ?? trace.fetched_at ?? null,
+    avgCost: numberOrNull(trace.avg_cost),
+    marketValue: asset.market_value ?? trace.market_value ?? asset.valuation,
+    costBasis: asset.cost_basis ?? trace.cost_basis ?? asset.valuation,
+    pnlAbsolute: asset.pnl_absolute ?? trace.pnl_absolute ?? 0,
+    pnlPercentage: asset.pnl_percentage ?? trace.pnl_percentage ?? 0,
+    portfolioWeight: asset.portfolio_weight ?? asset.pct,
+    valuationStatus: asset.valuation_status ?? trace.valuation_status ?? trace.status ?? "UNKNOWN",
+    pricingSource: trace.source ?? "portfolio_summary",
+    portfolios: asset.portfolios,
+  }
+}
+
+function formatMaybeMoney(value: number | null): string {
+  return value === null ? "-" : formatARS(value)
+}
+
+function formatMaybeNumber(value: number | null): string {
+  return value === null ? "-" : formatQty(value, 2)
+}
+
+function formatPriceTime(value: string | null): string {
+  if (!value) return "-"
+  return formatRelativeTime(value)
+}
+
+function statusClassName(status: string): string {
+  if (status === "OK") return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+  return "bg-rose-500/10 text-rose-400 border-rose-500/25"
 }
 
 export default function InstrumentsPage() {
   const router = useRouter()
-  const { data: rawPositions, loading, error, refetch } = usePositions()
-  const { data: portfolios } = usePortfolios()
-  const { data: summary } = usePortfolioSummary()
+  const { data: summary, loading, error, refetch } = usePortfolioSummary()
   const { data: signals } = useSignals()
   const [search, setSearch] = React.useState("")
-  const [sourceFilter, setSourceFilter] = React.useState("all")
+  const [statusFilter, setStatusFilter] = React.useState("all")
 
   React.useEffect(() => {
     const query = new URLSearchParams(window.location.search).get("q")
@@ -58,81 +117,75 @@ export default function InstrumentsPage() {
   }, [])
 
   const signalMap = React.useMemo(
-    () => Object.fromEntries((signals ?? []).map(s => [s.ticker, s.signal as SignalValue])),
-    [signals]
+    () => Object.fromEntries((signals ?? []).map((signal) => [signal.ticker, signal.signal as SignalValue])),
+    [signals],
   )
 
-  if (loading && !rawPositions) return <LoadingState />
-  if (error) return <ErrorState error={error} refetch={refetch} />
-  if (!rawPositions) return null
-
-  // Enrich positions with portfolio name, source name, and portfolio-relative pct
-  const portfolioMap = (portfolios ?? []).reduce<Record<number, { name: string; source: string }>>(
-    (map, p) => { map[p.id] = { name: p.name, source: p.source_name ?? "" }; return map },
-    {}
+  const rows = React.useMemo(
+    () => (summary?.by_asset ?? []).map(brokerRowFromAsset),
+    [summary],
   )
-  const total = summary?.total_valuation ?? 0
 
-  const data = rawPositions.map(p => ({
-    ...p,
-    portfolio: portfolioMap[p.portfolio_id]?.name ?? "",
-    source: portfolioMap[p.portfolio_id]?.source ?? "",
-    valuation_ars: p.valuation,
-    pct: total > 0 ? (p.valuation / total * 100) : 0,
-  }))
-
-  const sourceOptions = Array.from(new Set(data.map((p) => p.source).filter(Boolean)))
+  const statusOptions = Array.from(new Set(rows.map((row) => row.valuationStatus).filter(Boolean)))
   const normalizedSearch = search.toLowerCase()
-  const filteredData = data.filter(p => {
+  const filteredRows = rows.filter((row) => {
     const matchesSearch =
-      p.ticker.toLowerCase().includes(normalizedSearch) ||
-      p.source.toLowerCase().includes(normalizedSearch) ||
-      p.portfolio.toLowerCase().includes(normalizedSearch)
-    const matchesSource = sourceFilter === "all" || p.source === sourceFilter
-    return matchesSearch && matchesSource
+      row.ticker.toLowerCase().includes(normalizedSearch) ||
+      row.portfolios.join(" ").toLowerCase().includes(normalizedSearch) ||
+      row.pricingSource.toLowerCase().includes(normalizedSearch)
+    const matchesStatus = statusFilter === "all" || row.valuationStatus === statusFilter
+    return matchesSearch && matchesStatus
   })
 
   const exportCsv = () => {
-    const headers = ["ticker", "portfolio", "source", "currency", "quantity", "valuation", "valuation_date", "signal"]
-    const rows = filteredData.map((pos) => [
-      pos.ticker,
-      pos.portfolio,
-      pos.source,
-      pos.currency,
-      pos.quantity,
-      pos.valuation,
-      pos.valuation_date,
-      signalMap[pos.ticker] ?? "NEUTRAL",
+    const headers = [
+      "ticker",
+      "quantity",
+      "price",
+      "price_timestamp",
+      "avg_cost",
+      "market_value",
+      "cost_basis",
+      "pnl_absolute",
+      "pnl_percentage",
+      "portfolio_weight",
+      "valuation_status",
+    ]
+    const data = filteredRows.map((row) => [
+      row.ticker,
+      row.quantity,
+      row.price,
+      row.priceTime,
+      row.avgCost,
+      row.marketValue,
+      row.costBasis,
+      row.pnlAbsolute,
+      row.pnlPercentage,
+      row.portfolioWeight,
+      row.valuationStatus,
     ])
     const escapeCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`
-    const csv = [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\n")
+    const csv = [headers, ...data].map((row) => row.map(escapeCell).join(",")).join("\n")
     const blob = new Blob([`${csv}\n`], { type: "text/csv;charset=utf-8" })
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url
-    link.download = "minos-instrumentos.csv"
+    link.download = "minos-broker-valuation.csv"
     document.body.appendChild(link)
     link.click()
     link.remove()
     URL.revokeObjectURL(url)
   }
 
-  // Group by category
-  const groupedData = filteredData.reduce((acc, pos) => {
-    const cat = getAssetCategory(pos.ticker);
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(pos);
-    return acc;
-  }, {} as Record<string, typeof data>)
-
-  const categoriesOrder = ["Acciones", "Bonos", "Cedears", "Fondos", "Otros"];
+  if (loading && !summary) return <LoadingState />
+  if (error) return <ErrorState error={error} refetch={refetch} />
 
   return (
     <div className="flex flex-col gap-6 animate-fade-up">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Mis Instrumentos</h1>
-          <p className="text-muted-foreground text-sm font-medium">Glosa detallada de posiciones agrupadas por tipo de activo.</p>
+          <p className="text-muted-foreground text-sm font-medium">Valuación broker-grade por ticker, con pricing y rendimiento trazables.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -141,16 +194,16 @@ export default function InstrumentsPage() {
             size="sm"
             className="rounded-xl h-9 font-bold bg-muted/10 border-border/50 hover:bg-primary/5 hover:text-primary transition-all gap-2"
             onClick={exportCsv}
-            disabled={filteredData.length === 0}
+            disabled={filteredRows.length === 0}
           >
             <Download className="size-3.5" />
             Exportar
           </Button>
-          <Button 
+          <Button
             onClick={() => refetch()}
             disabled={loading}
-            variant="default" 
-            size="sm" 
+            variant="default"
+            size="sm"
             className="rounded-xl h-9 font-bold shadow-lg shadow-primary/20 gap-2"
           >
             <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -164,138 +217,115 @@ export default function InstrumentsPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input 
-              placeholder="Buscar por ticker o bróker..." 
+            <Input
+              placeholder="Buscar ticker, fuente o cartera..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               className="pl-9 rounded-xl border-border/50 bg-muted/10 focus:ring-primary/20 transition-all h-10 text-sm"
             />
           </div>
           <div className="flex items-center gap-2">
             <Filter className="size-3.5 text-muted-foreground" />
-            <Select value={sourceFilter} onValueChange={setSourceFilter}>
-              <SelectTrigger className="w-44 rounded-xl h-9 border-border/50 bg-muted/10 text-xs font-bold">
-                <SelectValue placeholder="Fuente" />
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-48 rounded-xl h-9 border-border/50 bg-muted/10 text-xs font-bold">
+                <SelectValue placeholder="Estado pricing" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas las fuentes</SelectItem>
-                {sourceOptions.map((source) => (
-                  <SelectItem key={source} value={source}>{source}</SelectItem>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                {statusOptions.map((status) => (
+                  <SelectItem key={status} value={status}>{status}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        <div className="rounded-xl border border-border/40 overflow-hidden bg-surface-elevated/30 backdrop-blur-sm">
-          <Table>
+        <div className="rounded-xl border border-border/40 overflow-x-auto bg-surface-elevated/30 backdrop-blur-sm">
+          <Table className="min-w-[1320px]">
             <TableHeader className="bg-muted/30">
               <TableRow className="hover:bg-transparent border-border/40">
-                <TableHead className="w-[180px] text-[10px] uppercase tracking-widest font-bold">Instrumento</TableHead>
-                <TableHead className="text-[10px] uppercase tracking-widest font-bold">Bróker / Fuente</TableHead>
-                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Valuación (ARS)</TableHead>
-                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Peso (%)</TableHead>
+                <TableHead className="w-[150px] text-[10px] uppercase tracking-widest font-bold">Ticker</TableHead>
+                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Nominales</TableHead>
+                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Precio</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-widest font-bold">Fecha precio</TableHead>
+                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">PPC</TableHead>
+                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">V. Actual</TableHead>
+                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">V. Inicial</TableHead>
+                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Rend. $</TableHead>
+                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Variación</TableHead>
+                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">% Cartera</TableHead>
+                <TableHead className="text-center text-[10px] uppercase tracking-widest font-bold">Estado</TableHead>
                 <TableHead className="text-center text-[10px] uppercase tracking-widest font-bold">Señal</TableHead>
                 <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Acción</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.length === 0 ? (
+              {filteredRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-48 text-center">
+                  <TableCell colSpan={13} className="h-48 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground gap-2">
-                        <Wallet className="size-8 opacity-20" />
-                        <p className="text-sm font-medium">No se encontraron instrumentos.</p>
+                      <Wallet className="size-8 opacity-20" />
+                      <p className="text-sm font-medium">No se encontraron instrumentos.</p>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : (
-                categoriesOrder.map(category => {
-                  const positions = groupedData[category] || [];
-                  if (positions.length === 0) return null;
+                filteredRows.map((row) => {
+                  const signal = signalMap[row.ticker] ?? "NEUTRAL"
+                  const signalStyle = SIGNAL_STYLE[signal]
+                  const color = assetColor(row.category)
+                  const hasPricingWarning = row.valuationStatus !== "OK"
 
                   return (
-                    <React.Fragment key={category}>
-                      {/* Category Header Row */}
-                      <TableRow className="bg-muted/10 hover:bg-muted/10 border-border/40">
-                        <TableCell colSpan={6} className="py-2 px-4">
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="size-1.5 rounded-full shadow-[0_0_8px_currentColor]" 
-                              style={{ color: assetColor(category), backgroundColor: "currentColor" }} 
-                            />
-                            <span className="text-[10px] uppercase tracking-[0.2em] font-black text-foreground/70">
-                              {category}
-                            </span>
-                            <Badge variant="outline" className="ml-2 text-[9px] font-bold bg-muted/20 border-border/20 py-0 h-4">
-                              {positions.length}
-                            </Badge>
+                    <TableRow
+                      key={row.ticker}
+                      className={`group border-border/40 transition-colors ${hasPricingWarning ? "bg-rose-500/[0.03] hover:bg-rose-500/[0.06]" : "hover:bg-muted/20"}`}
+                    >
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="size-9 rounded-lg bg-surface-elevated border border-border/40 flex items-center justify-center font-bold text-xs group-hover:bg-primary/5 transition-colors"
+                            style={{ borderLeft: `3px solid ${color}` }}
+                          >
+                            {row.ticker.substring(0, 4)}
                           </div>
-                        </TableCell>
-                      </TableRow>
-                      
-                      {/* Positions for this category */}
-                      {positions.map((pos, i) => (
-                        <TableRow key={`${category}-${i}`} className="group hover:bg-muted/20 border-border/40 transition-colors">
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-3">
-                              <div 
-                                className="size-9 rounded-lg bg-surface-elevated border border-border/40 flex items-center justify-center font-bold text-xs group-hover:bg-primary/5 transition-colors"
-                                style={{ borderLeft: `3px solid ${assetColor(category)}` }}
-                              >
-                                {pos.ticker.substring(0, 4)}
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="font-display font-bold text-sm tracking-tight group-hover:text-primary transition-colors">{pos.ticker}</span>
-                                <span className="text-[10px] text-muted-foreground font-medium">{pos.portfolio}</span>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground transition-colors">
-                              <Building2 className="size-3.5" />
-                              <span className="text-xs font-semibold">{pos.source}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="font-mono font-bold text-sm text-foreground">{formatARS(pos.valuation_ars)}</span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-12 h-1 rounded-full bg-muted/40 overflow-hidden hidden md:block">
-                                  <div 
-                                    className="h-full" 
-                                    style={{ width: `${pos.pct}%`, backgroundColor: assetColor(category) }} 
-                                  />
-                              </div>
-                              <span className="font-mono text-[11px] font-bold text-muted-foreground">{formatPctAlloc(pos.pct)}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {(() => {
-                              const sig = signalMap[pos.ticker] ?? "NEUTRAL"
-                              const style = SIGNAL_STYLE[sig]
-                              return (
-                                <Badge className={`text-[9px] font-black tracking-widest border px-2 py-0.5 ${style.className}`}>
-                                  {style.label}
-                                </Badge>
-                              )
-                            })()}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary group/btn transition-all"
-                              onClick={() => router.push(`/tickers?q=${encodeURIComponent(pos.ticker)}`)}
-                              title={`Ver ${pos.ticker} en Tickers Unificados`}
-                            >
-                              <ArrowUpRight className="size-4 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </React.Fragment>
+                          <div className="flex flex-col">
+                            <span className="font-display font-bold text-sm tracking-tight group-hover:text-primary transition-colors">{row.ticker}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium">{row.portfolios.join(", ") || "-"}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs font-semibold">{formatMaybeNumber(row.quantity)}</TableCell>
+                      <TableCell className="text-right font-mono text-xs font-semibold">{formatMaybeMoney(row.price)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{formatPriceTime(row.priceTime)}</TableCell>
+                      <TableCell className="text-right font-mono text-xs font-semibold">{formatMaybeMoney(row.avgCost)}</TableCell>
+                      <TableCell className="text-right font-mono text-xs font-bold text-foreground">{formatARS(row.marketValue)}</TableCell>
+                      <TableCell className="text-right font-mono text-xs font-semibold text-muted-foreground">{formatARS(row.costBasis)}</TableCell>
+                      <TableCell className="text-right font-mono text-xs font-bold">{formatARS(row.pnlAbsolute)}</TableCell>
+                      <TableCell className="text-right font-mono text-xs font-bold">{formatPct(row.pnlPercentage)}</TableCell>
+                      <TableCell className="text-right font-mono text-xs font-bold">{formatPctAlloc(row.portfolioWeight)}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={`text-[9px] font-black tracking-widest border px-2 py-0.5 ${statusClassName(row.valuationStatus)}`}>
+                          {row.valuationStatus}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={`text-[9px] font-bold tracking-wider border px-2 py-0.5 opacity-70 ${signalStyle.className}`}>
+                          {signalStyle.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary group/btn transition-all"
+                          onClick={() => router.push(`/tickers?q=${encodeURIComponent(row.ticker)}`)}
+                          title={`Ver ${row.ticker} en Tickers Unificados`}
+                        >
+                          <ArrowUpRight className="size-4 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   )
                 })
               )}

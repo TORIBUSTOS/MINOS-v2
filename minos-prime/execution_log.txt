@@ -1,0 +1,156 @@
+==============================
+BN: BN-S2-02 — PriceResult / Quote enriquecido
+Agente: CODEX
+Fecha: 2026-04-30
+Branch: codex/bn-s2-02
+
+ARCHIVOS MODIFICADOS:
+- src/services/market_data.py
+- tests/test_market_data.py
+- tests/test_instrument_resolver.py
+- scripts/debug_pricing.py
+- minos-prime/execution_log.txt
+
+ARCHIVOS NO TOCADOS:
+- src/services/portfolio_engine.py
+- src/services/intelligence.py
+- frontend/client/**
+- modelos/migraciones
+- reglas de señales
+
+TESTS:
+- py -3.12 -m pytest tests/test_market_data.py tests/test_instrument_resolver.py: 23 passed
+- py -3.12 -m pytest tests/: 175 passed
+
+DEBUG_PRICING:
+- Ejecutado con: py -3.12 scripts/debug_pricing.py
+- Salida:
+  ticker_input | instrument_type | exchange | resolved_symbol | source | price | currency | quote_timestamp | fetched_at | is_stale | status | error
+  BMA | EQUITY | BYMA | BMA.BA | yfinance | 10840.0 | ARS | 2026-04-30T19:05:30.030990+00:00 | 2026-04-30T19:05:30.030990+00:00 | False | OK | None
+  YPFD | EQUITY | BYMA | YPFD.BA | yfinance | 67175.0 | ARS | 2026-04-30T19:05:31.460372+00:00 | 2026-04-30T19:05:31.460372+00:00 | False | OK | None
+  GGAL | EQUITY | BYMA | GGAL.BA | yfinance | 6200.0 | ARS | 2026-04-30T19:05:32.123928+00:00 | 2026-04-30T19:05:32.123928+00:00 | False | OK | None
+  PAMP | EQUITY | BYMA | PAMP.BA | yfinance | 4927.5 | ARS | 2026-04-30T19:05:32.551081+00:00 | 2026-04-30T19:05:32.551081+00:00 | False | OK | None
+  SUPV | EQUITY | BYMA | SUPV.BA | yfinance | 2480.0 | ARS | 2026-04-30T19:05:32.956309+00:00 | 2026-04-30T19:05:32.956309+00:00 | False | OK | None
+
+RESULTADO:
+- Market data expone PriceResult con input_ticker, resolved_symbol, source, price, currency, timestamp, fetched_at, instrument_type, exchange, quote_unit, status, is_stale y error
+- BYMA EQUITY mantiene resolución con sufijo .BA
+- BMA -> BMA.BA
+- YPFD -> YPFD.BA
+- Si yfinance falla sin cache, status es FETCH_ERROR y price queda None
+- Si yfinance falla con cache vencido, status es STALE e is_stale queda True
+- get_price y refresh_prices mantienen compatibilidad devolviendo float/None
+- No se avanzó a BN-S2-03
+
+RIESGOS:
+- yfinance puede no exponer timestamp real de mercado para todos los símbolos; en ese caso se usa fetched_at como timestamp trazable
+- pricing aún depende de disponibilidad y consistencia de yfinance
+- CEDEAR/bonos/FX fuera de scope
+
+PRÓXIMO BN:
+BN-S2-03 — Valuación dinámica broker-grade en PortfolioEngine
+==============================
+
+==============================
+BN: BN-S2-03 — Ajuste post-review local
+Agente: CODEX
+Fecha: 2026-05-01
+Branch: codex/bn-s2-03
+
+HALLAZGOS CORREGIDOS:
+- _quote_context ya no asume que toda posición ARS es BYMA/EQUITY.
+- Quote dinámico queda limitado a assets explícitamente marcados como EQUITY.
+- Activos ARS no equity, como AL30/GD30, usan fallback persistido con valuation_status NO_DYNAMIC_QUOTE.
+- valuation_trace mantiene forma estable como resumen dict y se agrega valuation_traces siempre lista.
+- Tests golden BMA/YPFD ampliados con portfolio_weight, quantity, avg_cost, resolved_symbol, price, currency, status, timestamp/fetched_at y valuation_traces.
+- Agregado test AL30 no equity para asegurar que no se resuelve ciegamente como AL30.BA.
+
+ARCHIVOS MODIFICADOS EN AJUSTE:
+- src/services/portfolio_engine.py
+- tests/test_portfolio_engine.py
+- minos-prime/execution_log.txt
+
+ARCHIVOS NO TOCADOS EN AJUSTE:
+- frontend/client/**
+- src/services/intelligence.py
+- src/services/market_data.py
+- modelos/migraciones
+
+TESTS:
+- py -3.12 -m pytest tests/test_portfolio_engine.py tests/test_api_portfolio.py tests/test_api_intelligence.py tests/test_market_data.py tests/test_instrument_resolver.py -v: 72 passed
+- py -3.12 -m pytest tests/ -v: 178 passed
+
+RESULTADO:
+- BN-S2-03 queda ajustado tras review local.
+- No se avanzó a BN-S2-04.
+
+RIESGOS RESTANTES:
+- El quote dinámico depende de que ingestion/manual load clasifique correctamente Asset.asset_type como EQUITY.
+- La rama codex/bn-s2-03 todavía hereda cambios BN-S2-02 si se compara directo contra main; conviene abrir PR con base adecuada o separar ramas antes de merge.
+==============================
+
+==============================
+BN: BN-S2-04 — valuation_status bloquea Intelligence
+Agente: CODEX
+Fecha: 2026-05-01
+Branch: codex/bn-s2-04
+
+ARCHIVOS MODIFICADOS:
+- src/services/intelligence.py
+- src/schemas/intelligence.py
+- tests/test_intelligence.py
+- tests/test_api_intelligence.py
+- minos-prime/execution_log.txt
+
+ARCHIVOS NO TOCADOS:
+- frontend/client/**
+- src/services/market_data.py
+- modelos/migraciones
+
+TESTS:
+- py -3.12 -m pytest tests/test_intelligence.py tests/test_api_intelligence.py -v: 37 passed
+- py -3.12 -m pytest tests/ -v: 182 passed
+
+RESULTADO:
+- IntelligenceEngine lee valuation_status cuando viene disponible en by_asset.
+- Si valuation_status existe y es distinto de OK, la señal conserva su signal calculada pero queda signal_status=BLOCKED_BY_VALUATION e is_actionable=False.
+- La API /api/v1/intelligence/signals expone signal_status, is_actionable, valuation_status y block_reason.
+- Si valuation_status es OK o no viene disponible, el comportamiento actual se mantiene.
+- No se avanzó a BN-S2-05.
+
+RIESGOS:
+- DecisionEngine y ReallocationEngine siguen contando signal cruda para mantener alcance de BN-S2-04; el bloqueo accionable está expuesto en /signals.
+
+PRÓXIMO BN:
+BN-S2-05 — UI broker-like mínima
+==============================
+
+==============================
+BN: BN-S2-05 — UI broker-like mínima
+Agente: CODEX
+Fecha: 2026-05-01
+Branch: codex/bn-s2-05
+
+ARCHIVOS MODIFICADOS:
+- frontend/client/app/instruments/page.tsx
+- frontend/client/types/minos.ts
+- minos-prime/execution_log.txt
+
+ARCHIVOS NO TOCADOS:
+- src/services/**
+- models
+- migrations
+
+RESULTADO:
+- La vista Instrumentos muestra una tabla broker-like basada en portfolio summary / by_asset.
+- Columnas visibles: ticker, quantity, price, price_timestamp/fetched_at, avg_cost, market_value, cost_basis, pnl_absolute, pnl_percentage, portfolio_weight y valuation_status.
+- valuation_status distinto de OK se muestra con badge rojo; las señales quedan como columna secundaria y visualmente atenuada.
+- npm run build: passed.
+- .\node_modules\.bin\tsc.cmd --noEmit: passed.
+- npm run lint: no ejecutable eslint instalado en node_modules local.
+
+RIESGOS:
+- Si el backend no entrega valuation_trace/valuation_traces para un activo, la UI muestra "-" en precio, nominales, PPC y fecha, sin inventar datos.
+- La columna fuente usa la fuente de pricing del valuation_trace porque by_asset no expone broker/source operativo por ticker.
+
+==============================

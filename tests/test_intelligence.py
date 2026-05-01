@@ -17,6 +17,7 @@ def make_portfolio_data(assets: list[dict]) -> dict:
             "valuation": a["valuation"],
             "pct": round(a["valuation"] / total * 100, 4) if total else 0,
             "portfolios": a.get("portfolios", ["Principal"]),
+            **({"valuation_status": a["valuation_status"]} if "valuation_status" in a else {}),
         }
         for a in assets
     ]
@@ -188,3 +189,55 @@ def test_cartera_diversificada_solo_hold():
     signals = engine.evaluate_tickers(data)
 
     assert all(s["signal"] == "HOLD" for s in signals)
+
+
+def test_valuation_status_ok_mantiene_señal_accionable():
+    data = make_portfolio_data([
+        {"ticker": "MELI", "valuation": 400.0, "valuation_status": "OK"},
+        {"ticker": "GGAL", "valuation": 300.0, "valuation_status": "OK"},
+        {"ticker": "YPFD", "valuation": 300.0, "valuation_status": "OK"},
+    ])
+    engine = IntelligenceEngine()
+    signals = engine.evaluate_tickers(data)
+
+    meli = next(s for s in signals if s["ticker"] == "MELI")
+    assert meli["signal"] == "SELL"
+    assert meli["signal_status"] == "ACTIONABLE"
+    assert meli["is_actionable"] is True
+    assert meli["valuation_status"] == "OK"
+    assert meli["block_reason"] is None
+
+
+def test_valuation_status_no_dynamic_quote_bloquea_señal():
+    data = make_portfolio_data([
+        {"ticker": "MELI", "valuation": 400.0, "valuation_status": "NO_DYNAMIC_QUOTE"},
+        {"ticker": "GGAL", "valuation": 300.0, "valuation_status": "OK"},
+        {"ticker": "YPFD", "valuation": 300.0, "valuation_status": "OK"},
+    ])
+    engine = IntelligenceEngine()
+    signals = engine.evaluate_tickers(data)
+
+    meli = next(s for s in signals if s["ticker"] == "MELI")
+    assert meli["signal"] == "SELL"
+    assert meli["signal_status"] == "BLOCKED_BY_VALUATION"
+    assert meli["is_actionable"] is False
+    assert meli["valuation_status"] == "NO_DYNAMIC_QUOTE"
+    assert "NO_DYNAMIC_QUOTE" in meli["block_reason"]
+    assert "bloqueada" in meli["reason"].lower()
+
+
+def test_valuation_status_pricing_error_bloquea_señal():
+    data = make_portfolio_data([
+        {"ticker": "NVDA", "valuation": 20.0, "valuation_status": "PRICING_ERROR"},
+        {"ticker": "TSLA", "valuation": 950.0, "valuation_status": "OK"},
+        {"ticker": "AMZN", "valuation": 30.0, "valuation_status": "OK"},
+    ])
+    engine = IntelligenceEngine()
+    signals = engine.evaluate_tickers(data)
+
+    nvda = next(s for s in signals if s["ticker"] == "NVDA")
+    assert nvda["signal"] == "BUY"
+    assert nvda["signal_status"] == "BLOCKED_BY_VALUATION"
+    assert nvda["is_actionable"] is False
+    assert nvda["valuation_status"] == "PRICING_ERROR"
+    assert "PRICING_ERROR" in nvda["block_reason"]
