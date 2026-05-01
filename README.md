@@ -22,6 +22,18 @@ pip install -r requirements.txt
 uvicorn src.main:app --reload --port 8001
 ```
 
+## Sprint 2 — Broker-Grade Valuation Core (CERRADO)
+
+Resumen:
+- Resolución correcta de instrumentos BYMA (`.BA`)
+- Pricing trazable con contexto (`Quote`)
+- Valuación tipo broker (`market_value`, `pnl`, etc.)
+- Bloqueo de señales sin valuación confiable
+- UI tipo broker con tabla de instrumentos
+
+Estado:
+COMPLETADO
+
 ## Estado
 
 **Fase:** Sprint 1 — TRACK A: Data Layer

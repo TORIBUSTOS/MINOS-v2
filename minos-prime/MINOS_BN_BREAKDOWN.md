@@ -394,6 +394,23 @@ A ──→ C ─────────→ E
 
 ---
 
+## SPRINT 2 — BROKER-GRADE VALUATION CORE ✅
+
+**Estado:** CERRADO ✅
+**Objetivo:** Priorizar verdad financiera antes de inteligencia accionable.
+
+| BN | Descripción corta | Estado |
+|----|-------------------|--------|
+| BN-S2-01 | InstrumentResolver mínimo para acciones BYMA | ✅ |
+| BN-S2-02 | PriceResult / Quote enriquecido | ✅ |
+| BN-S2-03 | Valuación dinámica broker-grade en PortfolioEngine | ✅ |
+| BN-S2-04 | valuation_status bloquea Intelligence | ✅ |
+| BN-S2-05 | UI broker-like mínima | ✅ |
+
+**Resultado:** Sprint 2 completado. MINOS cuenta con resolución BYMA, pricing trazable, valuación broker-grade, protección de señales cuando la valuación no es confiable y una tabla frontend tipo broker para inspección patrimonial.
+
+---
+
 ## DECISIONES TÉCNICAS (desvíos del spec original)
 
 | Decisión | Detalle |
