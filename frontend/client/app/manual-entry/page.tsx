@@ -11,8 +11,8 @@ import {
   Trash2,
   Loader2
 } from "lucide-react"
-import { SectionPanel, SectionHeader, GlowOrb } from "@/components/dashboard/dashboard-ui"
-import { useCreatePosition, useFileUpload, usePortfolios } from "@/hooks/use-minos"
+import { GlowOrb, PageHeader, SectionPanel, SectionHeader } from "@/components/dashboard/dashboard-ui"
+import { useCreatePosition, useFilePreview, useFileUpload, usePortfolios } from "@/hooks/use-minos"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -30,6 +30,7 @@ import { toast } from "sonner"
 export default function ManualEntryPage() {
   const { add: addTransaction, loading: adding } = useCreatePosition()
   const { upload: uploadFile, loading: uploading } = useFileUpload()
+  const { preview: previewFile, loading: previewing, result: previewResult, setResult: setPreviewResult } = useFilePreview()
   const { data: portfolios } = usePortfolios()
 
   const [formData, setFormData] = React.useState({
@@ -49,17 +50,32 @@ export default function ManualEntryPage() {
 
   const [file, setFile] = React.useState<File | null>(null)
   const [isDragging, setIsDragging] = React.useState(false)
+  const supportedUploadPattern = /\.(csv|xlsx|xls|pdf|png|jpe?g|webp)$/i
+  const previewRequestRef = React.useRef(0)
   const portfolioOptions = React.useMemo(() => {
     const names = (portfolios ?? []).map((portfolio) => portfolio.name)
     return names.length > 0 ? Array.from(new Set(names)) : ["Principal"]
   }, [portfolios])
 
+  const selectUploadFile = (selected: File | null) => {
+    if (!selected) {
+      setFile(null)
+      setPreviewResult(null)
+      return
+    }
+    if (!supportedUploadPattern.test(selected.name)) {
+      toast.error("Formato no soportado. Usá CSV, Excel, PDF o imagen")
+      return
+    }
+    setFile(selected)
+    setPreviewResult(null)
+  }
+
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setIsDragging(false)
     const dropped = e.dataTransfer.files?.[0]
-    if (dropped && /\.(csv|xlsx|xls)$/i.test(dropped.name)) setFile(dropped)
-    else if (dropped) toast.error("Formato no soportado. Usá .csv o .xlsx")
+    selectUploadFile(dropped ?? null)
   }
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -96,13 +112,54 @@ export default function ManualEntryPage() {
       return
     }
     try {
-      await uploadFile(file, bulkConfig.source, bulkConfig.portfolio)
-      toast.success("Archivo procesado correctamente")
+      const forceConfirm = Boolean(previewResult && previewResult.rows.length > 0 && !previewResult.can_confirm)
+      const result = await uploadFile(file, bulkConfig.source, bulkConfig.portfolio, forceConfirm)
+      toast.success(`Archivo procesado: ${result.processed} posiciones, ${result.rejected} rechazadas`)
       setFile(null)
+      setPreviewResult(null)
     } catch (err: any) {
       toast.error(err.message || "Error al procesar el archivo")
     }
   }
+
+  const handleFilePreview = async () => {
+    if (!file) return
+    try {
+      const result = await previewFile(file)
+      if (result.can_confirm) {
+        toast.success(`Preview lista: ${result.processed} filas detectadas`)
+      } else {
+        toast.error("Preview incompleta: faltan datos para consolidar")
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Error al leer la captura")
+    }
+  }
+
+  React.useEffect(() => {
+    if (!file) return
+
+    const requestId = previewRequestRef.current + 1
+    previewRequestRef.current = requestId
+    ;(async () => {
+      try {
+        const result = await previewFile(file)
+        if (previewRequestRef.current !== requestId) return
+        if (result.can_confirm) {
+          toast.success(`Preview lista: ${result.processed} filas detectadas`)
+        } else {
+          toast.error("Preview incompleta: faltan datos para consolidar")
+        }
+      } catch (err: any) {
+        if (previewRequestRef.current !== requestId) return
+        toast.error(err.message || "Error al leer la captura")
+      }
+    })()
+  }, [file, previewFile])
+
+  const formatPreviewMoney = (value: number | null) => (
+    value === null ? "-" : value.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  )
 
   const handleTemplateDownload = () => {
     const headers = ["ticker", "quantity", "currency", "valuation", "valuation_date"]
@@ -120,14 +177,11 @@ export default function ManualEntryPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-up max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Carga Manual</h1>
-        <p className="text-muted-foreground text-sm font-medium">Registra nuevas operaciones o importa archivos de transacciones.</p>
-      </div>
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 animate-fade-up">
+      <PageHeader title="Carga Manual" subtitle="Registra nuevas operaciones o importa archivos de transacciones." />
 
       <Tabs defaultValue="single" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md rounded-xl bg-muted/20 p-1 mb-6 border border-border/40">
+        <TabsList className="mb-6 grid w-full max-w-md grid-cols-2 rounded-xl border border-border/40 bg-muted/20 p-1">
           <TabsTrigger value="single" className="rounded-lg font-bold text-xs uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-primary-foreground shadow-sm transition-all">
             Carga Individual
           </TabsTrigger>
@@ -141,7 +195,7 @@ export default function ManualEntryPage() {
             <GlowOrb className="w-64 h-64 -top-32 -right-32 bg-primary/5" />
             <SectionHeader title="Nueva Transacción" subtitle="Ingreso manual de movimiento financiero" />
             
-            <form onSubmit={handleFormSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <form onSubmit={handleFormSubmit} className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
               <div className="space-y-2">
                 <Label htmlFor="ticker" className="text-xs font-semibold text-muted-foreground ml-1">Instrumento (Ticker) <span className="text-destructive">*</span></Label>
                 <Input 
@@ -251,9 +305,9 @@ export default function ManualEntryPage() {
         <TabsContent value="bulk">
           <SectionPanel className="relative overflow-hidden group">
             <GlowOrb className="w-56 h-56 -bottom-24 -left-24 bg-chart-4/10" />
-            <SectionHeader title="Importación Masiva" subtitle="Sube un archivo Excel o CSV con tus movimientos" />
+            <SectionHeader title="Importación Masiva" subtitle="Sube un Excel, CSV, PDF o captura de tu resumen" />
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 mb-8">
+            <div className="mb-8 mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label className="text-xs font-semibold text-muted-foreground ml-1">Bróker / Fuente</Label>
                 <Input 
@@ -279,7 +333,7 @@ export default function ManualEntryPage() {
             </div>
             
             <div
-              className={`mt-8 border-2 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center transition-all cursor-pointer relative overflow-hidden
+              className={`relative mt-8 flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed p-8 transition-all sm:p-12
                 ${isDragging
                   ? "border-primary bg-primary/5 scale-[1.01] shadow-lg shadow-primary/10"
                   : "border-border/40 bg-muted/5 group-hover:bg-muted/10 group-hover:border-primary/30"
@@ -294,8 +348,8 @@ export default function ManualEntryPage() {
                 id="file-upload"
                 type="file" 
                 className="hidden" 
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                accept=".csv,.xlsx,.xls"
+                onChange={(e) => selectUploadFile(e.target.files?.[0] || null)}
+                accept=".csv,.xlsx,.xls,.pdf,.png,.jpg,.jpeg,.webp"
               />
               
               <AnimatePresence mode="wait">
@@ -314,7 +368,7 @@ export default function ManualEntryPage() {
                       <p className="text-base font-bold text-foreground">
                         {isDragging ? "Soltá el archivo aquí" : "Arrastrá o seleccioná un archivo"}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">Formato soportado: .xlsx, .csv. Máximo 10MB.</p>
+                      <p className="text-xs text-muted-foreground mt-1 max-w-[260px]">Formatos: .xlsx, .csv, .pdf, .png, .jpg, .webp. Máximo 10MB.</p>
                     </div>
                   </motion.div>
                 ) : (
@@ -346,25 +400,114 @@ export default function ManualEntryPage() {
               </AnimatePresence>
             </div>
 
-            <div className="mt-8 flex flex-col md:flex-row gap-4">
+            <div className="mt-8 flex flex-col gap-3 md:flex-row md:gap-4">
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 h-11 rounded-xl font-bold border-border/50 bg-muted/10 hover:bg-muted/20 gap-2"
+                className="h-11 flex-1 rounded-xl border-border/50 bg-muted/10 font-bold hover:bg-muted/20 gap-2"
                 onClick={handleTemplateDownload}
               >
                 <FileText className="size-4" />
                 Descargar Plantilla
               </Button>
               <Button 
-                disabled={!file || uploading} 
-                className="flex-[2] h-11 rounded-xl font-bold shadow-lg shadow-primary/20 gap-2"
+                disabled={!file || previewing}
+                type="button"
+                variant="outline"
+                className="h-11 flex-[2] rounded-xl border-primary/30 bg-primary/5 font-bold text-primary hover:bg-primary/10 gap-2"
+                onClick={handleFilePreview}
+              >
+                {previewing ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                {previewing ? "Leyendo Captura..." : "Releer Preview"}
+              </Button>
+              <Button 
+                disabled={!file || uploading || !previewResult || previewResult.rows.length === 0} 
+                type="button"
+                className={`h-11 flex-[2] rounded-xl font-bold shadow-lg shadow-primary/20 gap-2 ${
+                  previewResult && !previewResult.can_confirm ? "bg-amber-500 text-black hover:bg-amber-400" : ""
+                }`}
                 onClick={handleFileUpload}
               >
                 {uploading ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-                Procesar Archivo Importado
+                {previewResult?.can_confirm ? "Confirmar Carga" : "Confirmar Bajo Revisión"}
               </Button>
             </div>
+
+            {file && previewing ? (
+              <div className="mt-6 flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-bold text-primary">
+                <Loader2 className="size-4 animate-spin" />
+                Leyendo imagen con OCR y preparando preview...
+              </div>
+            ) : null}
+
+            {previewResult ? (
+              <div className="mt-6 overflow-hidden rounded-xl border border-border/50 bg-background/40">
+                <div className={`border-b px-4 py-3 ${previewResult.can_confirm ? "border-fin-gain/30 bg-fin-gain/5" : "border-destructive/30 bg-destructive/5"}`}>
+                  <p className="text-sm font-bold">
+                    {previewResult.can_confirm ? "Preview lista para confirmar" : "Preview incompleta: no consolidar todavía"}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Layout: {previewResult.detected_layout} · Filas: {previewResult.processed} · Rechazadas: {previewResult.rejected}
+                  </p>
+                  {previewResult.missing_columns.length > 0 ? (
+                    <p className="mt-2 text-xs font-bold text-destructive">
+                      Faltan columnas: {previewResult.missing_columns.join(", ")}
+                    </p>
+                  ) : null}
+                  {previewResult.warnings.length > 0 ? (
+                    <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                      {previewResult.warnings.map((warning, index) => (
+                        <li key={`${warning}-${index}`}>{warning}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-[1040px] w-full table-fixed text-xs">
+                    <colgroup>
+                      <col className="w-[8%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[12%]" />
+                      <col className="w-[12%]" />
+                      <col className="w-[13%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[7%]" />
+                      <col className="w-[9%]" />
+                    </colgroup>
+                    <thead className="bg-muted/40">
+                      <tr className="border-b border-border/50">
+                        {["Ticker", "Nominales", "Precio", "PPC", "V. Actual", "V. Inicial", "Rendimiento", "% de R.", "DPT", "OK"].map((header) => (
+                          <th key={header} className="px-2 py-2 text-left font-bold text-foreground last:text-center">
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewResult.rows.map((row) => (
+                        <tr key={`${row.asset_type}-${row.ticker}`} className="border-b border-border/40 last:border-b-0">
+                          <td className="px-2 py-2 font-bold text-slate-300">{row.ticker}</td>
+                          <td className="px-2 py-2 text-right font-mono">{formatPreviewMoney(row.cantidad)}</td>
+                          <td className="px-2 py-2 text-right font-mono">{formatPreviewMoney(row.precio)}</td>
+                          <td className="px-2 py-2 text-right font-mono">{formatPreviewMoney(row.ppc)}</td>
+                          <td className="px-2 py-2 text-right font-mono bg-muted/25">{formatPreviewMoney(row.valuacion)}</td>
+                          <td className="px-2 py-2 text-right font-mono bg-muted/25">{formatPreviewMoney(row.valor_inicial)}</td>
+                          <td className={`px-2 py-2 text-right font-mono bg-muted/25 ${(row.rendimiento ?? 0) < 0 ? "text-fin-loss" : "text-fin-gain"}`}>
+                            {formatPreviewMoney(row.rendimiento)}
+                          </td>
+                          <td className="px-2 py-2 text-right font-mono">{formatPreviewMoney(row.pct_rendimiento)}</td>
+                          <td className="px-2 py-2 text-right font-mono">{formatPreviewMoney(row.dpt)}</td>
+                          <td className="px-2 py-2 text-center font-bold">{row.complete ? "OK" : "REVISAR"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
 
             <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center gap-3 p-4 rounded-2xl bg-muted/20 border border-border/40">

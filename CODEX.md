@@ -3,8 +3,8 @@
 Guia local para Codex en el repo MINOS v2.
 Complementa `CLAUDE.md` y `AG.md` con foco en reparacion, contratos reales y mantenimiento del frontend conectado al backend.
 
-**Ultima actualizacion:** 2026-04-29
-**Commit de referencia:** `3de1f29 fix(frontend): connect minos prime controls`
+**Ultima actualizacion:** 2026-05-01
+**Commit de referencia:** working tree local post Sprint 2 integration
 
 ---
 
@@ -66,7 +66,8 @@ Estos contratos fueron revisados contra `src/api/routes/*`:
 | Tickers unificados | `GET /api/v1/tickers/unified` |
 | Refresh market data | `POST /api/v1/market/refresh` |
 | Precios cacheados | `GET /api/v1/market/prices` |
-| Upload CSV/XLSX | `POST /api/v1/ingest/file` |
+| Upload CSV/XLSX/PDF/imagen | `POST /api/v1/ingest/file` |
+| Reset datos cargados | `POST /api/v1/admin/reset-uploaded-data` |
 | Signals | `GET /api/v1/intelligence/signals` |
 | Estado cartera | `GET /api/v1/intelligence/portfolio-status` |
 | Reasignacion | `GET /api/v1/intelligence/reallocation` |
@@ -74,8 +75,43 @@ Estos contratos fueron revisados contra `src/api/routes/*`:
 Gotchas:
 
 - Upload es `/api/v1/ingest/file`, no `/api/v1/ingest/upload`.
-- `POST /api/v1/market/refresh` refresca todos los tickers de cartera desde backend; no requiere body `{ tickers }`.
+- Upload acepta `.csv`, `.xlsx`, `.xls`, `.pdf`, `.png`, `.jpg`, `.jpeg`, `.webp`.
+- PDF Balanz funciona por texto embebido. Imagenes/capturas intentan OCR via `pytesseract`, pero requieren binario `tesseract` instalado y en PATH.
+- `POST /api/v1/market/refresh` refresca todos los tickers soportados desde backend; no requiere body `{ tickers }`. Debe usar contexto de instrumento (`exchange`, `instrument_type`), no ticker pelado.
+- `POST /api/v1/admin/reset-uploaded-data` requiere body `{"confirm": true}`. Borra solo `positions` y `load_records` con `load_type in ("file", "manual")`; preserva API/conectores y catalogos.
 - `GET /api/v1/portfolios` debe exponer `source_name` para que el frontend pueda mapear posiciones por fuente.
+
+---
+
+## Estado Actual — 2026-05-01
+
+Cambios recientes que deben asumir otros agentes:
+
+- CORS backend habilitado para `http://localhost:4400` y `http://127.0.0.1:4400`.
+- `TickersPage` tenia un error de orden de hooks por `useMemo` despues de returns tempranos; ya esta corregido. No agregar hooks despues de `if (loading/error/null) return`.
+- Settings incluye reset seguro de datos cargados en seccion Datos.
+- Carga masiva acepta CSV/Excel/PDF/imagenes y refresca vistas con `triggerMinosRefresh()`.
+- El parser de resumen Balanz PDF vive en `src/services/ingestion.py`; detecta secciones `Acciones`, `Bonos`, `Cedears`, `Corporativos`, `Fondos` y persiste `asset_type`.
+- El PDF local `ResumenDeCuenta_20260501.pdf` fue probado: extrae 23 posiciones (6 `EQUITY`, 4 `BOND`, 9 `CEDEAR`, 1 `CORPORATE_BOND`, 3 `FUND`).
+- yfinance esta conectado al portfolio engine para acciones BYMA conocidas aunque el `Asset.asset_type` viejo sea `unknown`; la inferencia vive en `src/services/normalization.py::infer_asset_type`.
+- `POST /api/v1/market/refresh` ya usa contexto BYMA. Verificacion real local: `YPFD: 67650.0`, `BMA: 10890.0`; `portfolio/summary` muestra `valuation_status: OK` y `resolved_symbol: YPFD.BA/BMA.BA`.
+- `SUPPORTED_DYNAMIC_ASSET_TYPES` incluye `EQUITY` y `CEDEAR`; bonos/fondos/ON siguen usando valuacion almacenada salvo proveedor especifico.
+
+Tests agregados/relevantes:
+
+```bash
+py -3.12 -m pytest tests/test_api_market.py tests/test_instrument_resolver.py tests/test_market_data.py tests/test_portfolio_engine.py -v
+py -3.12 -m pytest tests/test_statement_ingestion.py tests/test_ingestion.py tests/test_admin_reset.py tests/test_cors.py -v
+```
+
+Resultados recientes:
+
+- Pricing/portfolio: `40 passed`.
+- Ingestion/reset/CORS: `14 passed`.
+
+Gotcha de build:
+
+- `npm run build` puede cambiar automaticamente `frontend/client/next-env.d.ts` entre `.next/dev/types/routes.d.ts` y `.next/types/routes.d.ts`. No commitear ese cambio si solo es ruido generado.
 
 ---
 
@@ -224,7 +260,9 @@ Commit:
 
 ---
 
-## Sprint 2 - Pricing Core
+## Sprint 2 - Pricing Core (historico)
+
+Nota 2026-05-01: este bloque documenta el estado de `BN-S2-02` al 2026-04-30. Fue superado parcialmente por el estado actual: `portfolio_engine.py` ya consume `PriceResult` via `MarketDataService.get_quote`, y `/api/v1/market/refresh` usa contexto BYMA para acciones conocidas. Usar la seccion **Estado Actual — 2026-05-01** como fuente vigente.
 
 **Ultima actualizacion:** 2026-04-30
 **Branch actual de trabajo:** `codex/bn-s2-02`
@@ -357,11 +395,13 @@ YPFD | EQUITY | BYMA | YPFD.BA | yfinance | 67175.0 | ARS | 2026-04-30T19:05:31.
 - yfinance puede no exponer timestamp real de mercado para todos los simbolos; en ese caso se usa `fetched_at`.
 - Pricing depende de disponibilidad y consistencia de yfinance.
 - CEDEAR, bonos y FX siguen fuera de scope.
-- `portfolio_engine.py` todavia no consume `PriceResult`; eso corresponde a `BN-S2-03`.
+- Historico/superado: al 2026-04-30 `portfolio_engine.py` todavia no consumia `PriceResult`; al 2026-05-01 ya lo consume para `EQUITY`/`CEDEAR` soportados.
 
 ### Continuacion Recomendada
 
-No avanzar a `BN-S2-03` sin aprobacion explicita. Cuando se apruebe:
+Historico: no avanzar a `BN-S2-03` sin aprobacion explicita era la regla del 2026-04-30. Al 2026-05-01 ya existe una integracion parcial de portfolio engine con yfinance/BYMA. Si se formaliza BN-S2-03, partir desde el estado actual, no desde este bloque historico.
+
+Cuando se continue:
 
 - Leer nuevamente `minos-prime/SPRINT_2_EXECUTION_ORDER.md`.
 - Revisar `minos-prime/execution_log.txt`.

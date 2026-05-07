@@ -2,16 +2,24 @@
 
 import React from "react"
 import {
-  ArrowUpRight,
+  ChevronUp,
   Download,
   Filter,
+  MoreVertical,
   RefreshCw,
   Search,
-  Wallet,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-import { ErrorState, GlowOrb, LoadingState, SectionPanel } from "@/components/dashboard/dashboard-ui"
+import {
+  EmptyState,
+  ErrorState,
+  FinancialMetric,
+  LoadingState,
+  MobileMetricCard,
+  PageHeader,
+  ResponsiveFinancialTable,
+} from "@/components/dashboard/dashboard-ui"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,6 +45,8 @@ import type { AssetSummary, SignalValue, ValuationTrace } from "@/types/minos"
 type BrokerRow = {
   ticker: string
   category: string
+  assetType: string
+  underlying: string | null
   quantity: number | null
   price: number | null
   priceTime: string | null
@@ -50,6 +60,8 @@ type BrokerRow = {
   pricingSource: string
   portfolios: string[]
 }
+
+const CATEGORY_ORDER = ["Acciones", "Cedears", "Bonos", "Corporativos", "Fondos", "Otros"]
 
 const SIGNAL_STYLE: Record<SignalValue, { label: string; className: string }> = {
   BUY: { label: "BUY", className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
@@ -68,9 +80,12 @@ function numberOrNull(value: number | null | undefined): number | null {
 
 function brokerRowFromAsset(asset: AssetSummary): BrokerRow {
   const trace = firstTrace(asset)
+  const assetType = asset.asset_type ?? trace.instrument_type ?? "unknown"
   return {
     ticker: asset.ticker,
-    category: getAssetCategory(asset.ticker),
+    category: getAssetCategory(asset.ticker, assetType),
+    assetType,
+    underlying: asset.underlying ?? null,
     quantity: numberOrNull(trace.quantity),
     price: numberOrNull(trace.price),
     priceTime: trace.timestamp ?? trace.fetched_at ?? null,
@@ -102,6 +117,31 @@ function formatPriceTime(value: string | null): string {
 function statusClassName(status: string): string {
   if (status === "OK") return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
   return "bg-rose-500/10 text-rose-400 border-rose-500/25"
+}
+
+function pnlClassName(value: number): string {
+  if (value > 0) return "text-fin-gain"
+  if (value < 0) return "text-fin-loss"
+  return "text-muted-foreground"
+}
+
+function groupedRows(rows: BrokerRow[]) {
+  const groups = new Map<string, BrokerRow[]>()
+  rows.forEach((row) => {
+    const group = groups.get(row.category) ?? []
+    group.push(row)
+    groups.set(row.category, group)
+  })
+
+  return CATEGORY_ORDER
+    .filter((category) => groups.has(category))
+    .map((category) => ({
+      category,
+      rows: groups.get(category) ?? [],
+      totalMarketValue: (groups.get(category) ?? []).reduce((total, row) => total + row.marketValue, 0),
+      totalCostBasis: (groups.get(category) ?? []).reduce((total, row) => total + row.costBasis, 0),
+      totalPnl: (groups.get(category) ?? []).reduce((total, row) => total + row.pnlAbsolute, 0),
+    }))
 }
 
 export default function InstrumentsPage() {
@@ -136,6 +176,7 @@ export default function InstrumentsPage() {
     const matchesStatus = statusFilter === "all" || row.valuationStatus === statusFilter
     return matchesSearch && matchesStatus
   })
+  const sections = groupedRows(filteredRows)
 
   const exportCsv = () => {
     const headers = [
@@ -181,18 +222,17 @@ export default function InstrumentsPage() {
   if (error) return <ErrorState error={error} refetch={refetch} />
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-up">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Mis Instrumentos</h1>
-          <p className="text-muted-foreground text-sm font-medium">Valuación broker-grade por ticker, con pricing y rendimiento trazables.</p>
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-4 animate-fade-up">
+      <PageHeader
+        title="Mis Instrumentos"
+        subtitle="Tenencias consolidadas por especie, precio y rendimiento."
+        actions={
+          <>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="rounded-xl h-9 font-bold bg-muted/10 border-border/50 hover:bg-primary/5 hover:text-primary transition-all gap-2"
+            className="h-9 flex-1 rounded-md border-border/60 bg-muted/10 px-3 text-xs font-bold transition-all hover:bg-primary/5 hover:text-primary sm:flex-none"
             onClick={exportCsv}
             disabled={filteredRows.length === 0}
           >
@@ -204,30 +244,30 @@ export default function InstrumentsPage() {
             disabled={loading}
             variant="default"
             size="sm"
-            className="rounded-xl h-9 font-bold shadow-lg shadow-primary/20 gap-2"
+            className="h-9 flex-1 rounded-md px-3 text-xs font-bold shadow-none gap-2 sm:flex-none"
           >
             <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
             Actualizar
           </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <SectionPanel className="flex flex-col overflow-hidden">
-        <GlowOrb className="w-56 h-56 -bottom-24 -right-24 bg-primary/5" />
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 border border-border/50 bg-card/40 px-4 py-3 md:flex-row md:items-center md:justify-between">
+          <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               placeholder="Buscar ticker, fuente o cartera..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="pl-9 rounded-xl border-border/50 bg-muted/10 focus:ring-primary/20 transition-all h-10 text-sm"
+              className="h-8 rounded-md border-border/60 bg-background/50 pl-9 text-sm transition-all focus:ring-primary/20"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 md:w-auto">
             <Filter className="size-3.5 text-muted-foreground" />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48 rounded-xl h-9 border-border/50 bg-muted/10 text-xs font-bold">
+              <SelectTrigger className="h-8 flex-1 rounded-md border-border/60 bg-background/50 text-xs font-bold md:w-48 md:flex-none">
                 <SelectValue placeholder="Estado pricing" />
               </SelectTrigger>
               <SelectContent>
@@ -240,99 +280,194 @@ export default function InstrumentsPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-border/40 overflow-x-auto bg-surface-elevated/30 backdrop-blur-sm">
-          <Table className="min-w-[1320px]">
-            <TableHeader className="bg-muted/30">
-              <TableRow className="hover:bg-transparent border-border/40">
-                <TableHead className="w-[150px] text-[10px] uppercase tracking-widest font-bold">Ticker</TableHead>
-                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Nominales</TableHead>
-                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Precio</TableHead>
-                <TableHead className="text-[10px] uppercase tracking-widest font-bold">Fecha precio</TableHead>
-                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">PPC</TableHead>
-                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">V. Actual</TableHead>
-                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">V. Inicial</TableHead>
-                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Rend. $</TableHead>
-                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Variación</TableHead>
-                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">% Cartera</TableHead>
-                <TableHead className="text-center text-[10px] uppercase tracking-widest font-bold">Estado</TableHead>
-                <TableHead className="text-center text-[10px] uppercase tracking-widest font-bold">Señal</TableHead>
-                <TableHead className="text-right text-[10px] uppercase tracking-widest font-bold">Acción</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={13} className="h-48 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground gap-2">
-                      <Wallet className="size-8 opacity-20" />
-                      <p className="text-sm font-medium">No se encontraron instrumentos.</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredRows.map((row) => {
-                  const signal = signalMap[row.ticker] ?? "NEUTRAL"
-                  const signalStyle = SIGNAL_STYLE[signal]
-                  const color = assetColor(row.category)
-                  const hasPricingWarning = row.valuationStatus !== "OK"
+        {filteredRows.length === 0 ? (
+          <EmptyState title="No se encontraron instrumentos" description="Probá limpiar filtros o cargar una nueva posición." />
+        ) : (
+          <ResponsiveFinancialTable
+            table={
+          <div className="overflow-x-auto border border-border/50 bg-card/25">
+            <div className="min-w-[1420px]">
+              {sections.map((section) => {
+                const color = assetColor(section.category)
 
-                  return (
-                    <TableRow
-                      key={row.ticker}
-                      className={`group border-border/40 transition-colors ${hasPricingWarning ? "bg-rose-500/[0.03] hover:bg-rose-500/[0.06]" : "hover:bg-muted/20"}`}
+                return (
+                  <section key={section.category} className="border-b border-border/50 last:border-b-0">
+                    <div
+                      className="flex h-12 items-center gap-3 border-b border-border/60 bg-muted/65 px-4"
+                      style={{ borderLeft: `6px solid ${color}` }}
                     >
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="size-9 rounded-lg bg-surface-elevated border border-border/40 flex items-center justify-center font-bold text-xs group-hover:bg-primary/5 transition-colors"
-                            style={{ borderLeft: `3px solid ${color}` }}
-                          >
-                            {row.ticker.substring(0, 4)}
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-display font-bold text-sm tracking-tight group-hover:text-primary transition-colors">{row.ticker}</span>
-                            <span className="text-[10px] text-muted-foreground font-medium">{row.portfolios.join(", ") || "-"}</span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-xs font-semibold">{formatMaybeNumber(row.quantity)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs font-semibold">{formatMaybeMoney(row.price)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{formatPriceTime(row.priceTime)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs font-semibold">{formatMaybeMoney(row.avgCost)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs font-bold text-foreground">{formatARS(row.marketValue)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs font-semibold text-muted-foreground">{formatARS(row.costBasis)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs font-bold">{formatARS(row.pnlAbsolute)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs font-bold">{formatPct(row.pnlPercentage)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs font-bold">{formatPctAlloc(row.portfolioWeight)}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge className={`text-[9px] font-black tracking-widest border px-2 py-0.5 ${statusClassName(row.valuationStatus)}`}>
-                          {row.valuationStatus}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge className={`text-[9px] font-bold tracking-wider border px-2 py-0.5 opacity-70 ${signalStyle.className}`}>
-                          {signalStyle.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary group/btn transition-all"
-                          onClick={() => router.push(`/tickers?q=${encodeURIComponent(row.ticker)}`)}
-                          title={`Ver ${row.ticker} en Tickers Unificados`}
+                      <ChevronUp className="size-4 text-muted-foreground" />
+                      <h2 className="text-sm font-bold text-foreground">{section.category} ({section.rows.length})</h2>
+                    </div>
+
+                    <Table>
+                      <TableHeader className="bg-background/50">
+                        <TableRow className="h-10 border-border/60 hover:bg-transparent">
+                          <TableHead className="w-[120px] px-4 text-xs font-bold">Ticker</TableHead>
+                          <TableHead className="w-[120px] text-right text-xs font-bold">Nominales</TableHead>
+                          <TableHead className="w-[140px] text-right text-xs font-bold">Precio</TableHead>
+                          <TableHead className="w-[120px] text-right text-xs font-bold">PPC</TableHead>
+                          <TableHead className="w-[150px] text-right text-xs font-bold bg-muted/35">V. Actual</TableHead>
+                          <TableHead className="w-[150px] text-right text-xs font-bold bg-muted/35">V. Inicial</TableHead>
+                          <TableHead className="w-[150px] text-right text-xs font-bold bg-muted/35">Rendimiento</TableHead>
+                          <TableHead className="w-[130px] text-right text-xs font-bold">Variación (%)</TableHead>
+                          <TableHead className="w-[110px] text-right text-xs font-bold">% Cartera</TableHead>
+                          <TableHead className="w-[112px] text-right text-xs font-bold">Actualizado</TableHead>
+                          <TableHead className="w-[120px] text-center text-xs font-bold">Estado</TableHead>
+                          <TableHead className="w-[64px] text-center text-xs font-bold" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow className="h-9 border-border/50 bg-muted/65 hover:bg-muted/65">
+                          <TableCell colSpan={12} className="px-4 text-xs font-bold text-foreground/80">Pesos</TableCell>
+                        </TableRow>
+
+                        {section.rows.map((row) => {
+                          const signal = signalMap[row.ticker] ?? "NEUTRAL"
+                          const signalStyle = SIGNAL_STYLE[signal]
+
+                          return (
+                            <TableRow
+                              key={row.ticker}
+                              className="h-11 border-border/50 text-sm hover:bg-muted/35"
+                            >
+                              <TableCell className="px-4">
+                                <div className="flex flex-col leading-tight">
+                                  <span className="font-bold text-slate-300">{row.ticker}</span>
+                                  {row.underlying ? (
+                                    <span className="mt-1 max-w-[160px] truncate text-[10px] font-semibold text-muted-foreground">
+                                      Suby.: {row.underlying}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-semibold">{formatMaybeNumber(row.quantity)}</TableCell>
+                              <TableCell className="text-right font-mono text-slate-300">{formatMaybeMoney(row.price)}</TableCell>
+                              <TableCell className="text-right font-mono font-semibold">{formatMaybeMoney(row.avgCost)}</TableCell>
+                              <TableCell className="text-right font-mono font-bold bg-muted/35">{formatARS(row.marketValue)}</TableCell>
+                              <TableCell className="text-right font-mono font-semibold bg-muted/35">{formatARS(row.costBasis)}</TableCell>
+                              <TableCell className={`text-right font-mono font-bold bg-muted/35 ${pnlClassName(row.pnlAbsolute)}`}>
+                                {formatARS(row.pnlAbsolute)}
+                              </TableCell>
+                              <TableCell className={`text-right font-mono font-bold ${pnlClassName(row.pnlPercentage)}`}>
+                                {formatPct(row.pnlPercentage)}
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-semibold">{formatPctAlloc(row.portfolioWeight)}</TableCell>
+                              <TableCell className="text-right font-mono font-semibold text-muted-foreground">
+                                {row.priceTime ? formatPriceTime(row.priceTime) : "-"}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge className={`border px-2 py-0.5 text-[9px] font-black tracking-widest ${statusClassName(row.valuationStatus)}`}>
+                                  {row.valuationStatus}
+                                </Badge>
+                                {signal !== "NEUTRAL" ? (
+                                  <Badge className={`ml-1 border px-1.5 py-0.5 text-[9px] font-bold ${signalStyle.className}`}>
+                                    {signalStyle.label}
+                                  </Badge>
+                                ) : null}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-7 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                  onClick={() => router.push(`/tickers?q=${encodeURIComponent(row.ticker)}`)}
+                                  title={`Ver ${row.ticker} en Tickers Unificados`}
+                                >
+                                  <MoreVertical className="size-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+
+                        <TableRow className="h-10 border-border/60 bg-background/40 hover:bg-background/40">
+                          <TableCell colSpan={4} className="text-right text-xs font-bold text-muted-foreground">Totales</TableCell>
+                          <TableCell className="text-right font-mono text-sm font-bold bg-muted/35 text-slate-300">{formatARS(section.totalMarketValue)}</TableCell>
+                          <TableCell className="text-right font-mono text-sm font-bold bg-muted/35 text-slate-300">{formatARS(section.totalCostBasis)}</TableCell>
+                          <TableCell className={`text-right font-mono text-sm font-bold bg-muted/35 ${pnlClassName(section.totalPnl)}`}>
+                            {formatARS(section.totalPnl)}
+                          </TableCell>
+                          <TableCell colSpan={5} />
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </section>
+                )
+              })}
+            </div>
+          </div>
+            }
+            cards={
+              sections.map((section) => {
+                const color = assetColor(section.category)
+                return (
+                  <section key={section.category} className="space-y-3">
+                    <div
+                      className="flex h-11 items-center gap-3 border border-border/50 bg-muted/55 px-3"
+                      style={{ borderLeft: `5px solid ${color}` }}
+                    >
+                      <ChevronUp className="size-4 text-muted-foreground" />
+                      <h2 className="text-sm font-bold text-foreground">{section.category} ({section.rows.length})</h2>
+                    </div>
+                    {section.rows.map((row) => {
+                      const signal = signalMap[row.ticker] ?? "NEUTRAL"
+                      const signalStyle = SIGNAL_STYLE[signal]
+                      return (
+                        <MobileMetricCard
+                          key={row.ticker}
+                          title={row.ticker}
+                          subtitle={row.underlying ? `Subyacente: ${row.underlying}` : row.portfolios.join(", ") || section.category}
+                          accent={color}
+                          meta={
+                            <div className="space-y-1">
+                              <Badge className={`border px-2 py-0.5 text-[9px] font-black tracking-widest ${statusClassName(row.valuationStatus)}`}>
+                                {row.valuationStatus}
+                              </Badge>
+                              {signal !== "NEUTRAL" ? (
+                                <Badge className={`block border px-2 py-0.5 text-[9px] font-bold ${signalStyle.className}`}>
+                                  {signalStyle.label}
+                                </Badge>
+                              ) : null}
+                            </div>
+                          }
+                          action={
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-full rounded-md text-xs font-bold text-primary hover:bg-primary/10"
+                              onClick={() => router.push(`/tickers?q=${encodeURIComponent(row.ticker)}`)}
+                            >
+                              Ver ticker unificado
+                            </Button>
+                          }
                         >
-                          <ArrowUpRight className="size-4 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </SectionPanel>
+                          <FinancialMetric label="Nominales" value={formatMaybeNumber(row.quantity)} />
+                          {row.underlying ? (
+                            <FinancialMetric label="Subyacente" value={row.underlying} className="font-sans text-[12px]" />
+                          ) : null}
+                          <FinancialMetric label="Precio" value={formatMaybeMoney(row.price)} />
+                          <FinancialMetric label="V. Actual" value={formatARS(row.marketValue)} />
+                          <FinancialMetric label="Rendimiento" value={formatARS(row.pnlAbsolute)} tone={row.pnlAbsolute < 0 ? "loss" : "gain"} />
+                          <FinancialMetric label="Variación" value={formatPct(row.pnlPercentage)} tone={row.pnlPercentage < 0 ? "loss" : "gain"} />
+                          <FinancialMetric label="% Cartera" value={formatPctAlloc(row.portfolioWeight)} />
+                        </MobileMetricCard>
+                      )
+                    })}
+                    <div className="rounded-xl border border-border/50 bg-background/40 p-3">
+                      <div className="grid grid-cols-3 gap-2">
+                        <FinancialMetric label="Total" value={formatARS(section.totalMarketValue)} />
+                        <FinancialMetric label="Inicial" value={formatARS(section.totalCostBasis)} />
+                        <FinancialMetric label="P/L" value={formatARS(section.totalPnl)} tone={section.totalPnl < 0 ? "loss" : "gain"} />
+                      </div>
+                    </div>
+                  </section>
+                )
+              })
+            }
+          />
+        )}
+      </div>
     </div>
   )
 }

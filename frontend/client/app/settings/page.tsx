@@ -1,13 +1,24 @@
 "use client"
 
 import React from "react"
-import { Settings, User, Bell, Shield, Database, Palette } from "lucide-react"
-import { SectionPanel, SectionHeader } from "@/components/dashboard/dashboard-ui"
+import { User, Bell, Shield, Database, Palette, Trash2 } from "lucide-react"
+import { PageHeader, SectionPanel, SectionHeader } from "@/components/dashboard/dashboard-ui"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { useResetUploadedData } from "@/hooks/use-minos"
 
 const SECTIONS = [
   { icon: User, label: "Perfil" },
@@ -18,12 +29,11 @@ const SECTIONS = [
 ]
 
 export default function SettingsPage() {
+  const { reset, loading, error, result } = useResetUploadedData()
+
   return (
-    <div className="flex flex-col gap-6 animate-fade-up max-w-3xl">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Configuración</h1>
-        <p className="text-muted-foreground text-sm font-medium">Administrá tu cuenta y preferencias del sistema.</p>
-      </div>
+    <div className="flex max-w-4xl flex-col gap-6 animate-fade-up">
+      <PageHeader title="Configuración" subtitle="Administrá tu cuenta y preferencias del sistema." />
 
       {/* Perfil */}
       <SectionPanel>
@@ -56,14 +66,59 @@ export default function SettingsPage() {
             { label: "Actualizaciones de precios", description: "Al expirar el caché de market data" },
             { label: "Confirmación de carga", description: "Al importar o cargar posiciones nuevas" },
           ].map((item) => (
-            <div key={item.label} className="flex items-center justify-between py-2">
-              <div>
+            <div key={item.label} className="flex items-center justify-between gap-4 rounded-xl border border-border/30 bg-background/25 p-3">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-foreground">{item.label}</p>
                 <p className="text-xs text-muted-foreground">{item.description}</p>
               </div>
-              <Switch defaultChecked />
+              <Switch defaultChecked className="shrink-0" />
             </div>
           ))}
+        </div>
+      </SectionPanel>
+
+      {/* Datos */}
+      <SectionPanel>
+        <SectionHeader title="Datos" subtitle="Administración de cargas locales" />
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">Reiniciar datos cargados</p>
+            <p className="text-xs text-muted-foreground">
+              Borra posiciones importadas por archivo y carga manual. Conserva datos de API y conectores.
+            </p>
+            {result ? (
+              <p className="mt-2 text-xs font-mono text-emerald-500">
+                Borradas {result.positions_deleted} posiciones y {result.load_records_deleted} cargas.
+              </p>
+            ) : null}
+            {error ? (
+              <p className="mt-2 text-xs font-medium text-rose-500">{error.message}</p>
+            ) : null}
+          </div>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" className="h-10 w-full gap-2 rounded-xl font-bold md:w-auto" disabled={loading}>
+                <Trash2 className="size-4" />
+                {loading ? "Borrando..." : "Reiniciar"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reiniciar datos cargados</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción borra posiciones importadas por CSV/XLSX y carga manual. No borra datos de API, conectores,
+                  fuentes, carteras ni tickers base.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={reset} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Confirmar reinicio
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </SectionPanel>
 

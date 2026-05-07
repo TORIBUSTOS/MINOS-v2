@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from src.models.portfolio import Portfolio
 from src.models.position import Position
+from src.services.normalization import cedear_underlying, infer_asset_type
 
 
 def unify(db: Session) -> list[dict]:
@@ -33,16 +34,23 @@ def unify(db: Session) -> list[dict]:
 
     # Agrupa por ticker manteniendo entradas individuales por cartera
     ticker_entries: dict[str, list[dict]] = defaultdict(list)
+    ticker_types: dict[str, str] = {}
+    ticker_underlyings: dict[str, str | None] = {}
     for pos, port in rows:
+        asset_type = infer_asset_type(pos.ticker, pos.asset.asset_type if pos.asset else None)
         ticker_entries[pos.ticker].append({
             "portfolio": port.name,
             "quantity": pos.quantity,
             "valuation": pos.valuation,
         })
+        ticker_types[pos.ticker] = asset_type
+        ticker_underlyings[pos.ticker] = cedear_underlying(pos.ticker) if asset_type == "CEDEAR" else None
 
     return [
         {
             "ticker": ticker,
+            "asset_type": ticker_types.get(ticker, "unknown"),
+            "underlying": ticker_underlyings.get(ticker),
             "presence": len({e["portfolio"] for e in entries}),
             "entries": entries,
         }

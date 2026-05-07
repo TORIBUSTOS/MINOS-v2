@@ -78,10 +78,10 @@ export function AppHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between gap-2 border-b bg-background/80 px-4 backdrop-blur-md transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-      <div className="flex items-center gap-2">
+    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between gap-2 border-b bg-background/90 px-4 backdrop-blur-md transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+      <div className="flex min-w-0 items-center gap-2">
         <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
+        <Separator orientation="vertical" className="mr-2 hidden h-4 sm:block" />
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem className="hidden md:block">
@@ -91,13 +91,13 @@ export function AppHeader() {
             </BreadcrumbItem>
             <BreadcrumbSeparator className="hidden md:block" />
             <BreadcrumbItem>
-              <BreadcrumbPage className="font-semibold text-foreground">{getPageTitle(pathname)}</BreadcrumbPage>
+              <BreadcrumbPage className="truncate font-semibold text-foreground">{getPageTitle(pathname)}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-4">
         {/* Search - Desktop */}
         <form className="relative hidden md:block group" onSubmit={handleSearch}>
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground transition-colors group-focus-within:text-primary" />

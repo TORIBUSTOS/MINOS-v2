@@ -85,6 +85,23 @@ def test_consolidate_by_asset_groups_same_ticker(monkeypatch, db_session):
     assert by_asset["PAMP"]["valuation"] == 4000.0
 
 
+def test_consolidate_exposes_cedear_metadata(monkeypatch, db_session):
+    monkeypatch.setattr("src.services.portfolio_engine.MarketDataService.get_quote", _no_quote)
+    src_balanz = make_source(db_session, "Balanz")
+    portfolio = make_portfolio(db_session, "Principal", src_balanz)
+    asset_meli = make_asset(db_session, "MELI")
+    make_position(db_session, portfolio, asset_meli, "MELI", valuation=291850.0, currency="ARS")
+    db_session.commit()
+
+    result = consolidate(db_session)
+    meli = result["by_asset"][0]
+
+    assert meli["ticker"] == "MELI"
+    assert meli["asset_type"] == "CEDEAR"
+    assert meli["underlying"] == "MercadoLibre Inc."
+    assert meli["valuation_trace"]["instrument_type"] == "CEDEAR"
+
+
 def test_consolidate_by_asset_percentage_correct(monkeypatch, db_session):
     monkeypatch.setattr("src.services.portfolio_engine.MarketDataService.get_quote", _no_quote)
     _seed_two_portfolios(db_session)
@@ -207,6 +224,53 @@ def test_consolidate_uses_dynamic_quote_for_balanz_bma(monkeypatch, db_session):
     assert bma["valuation_trace"]["valuation_status"] == "OK"
     assert bma["valuation_trace"]["timestamp"] == now.isoformat()
     assert bma["valuation_trace"]["fetched_at"] == now.isoformat()
+
+
+def test_consolidate_infers_dynamic_quote_for_known_byma_equity(monkeypatch, db_session):
+    src_balanz = make_source(db_session, "Balanz")
+    portfolio = make_portfolio(db_session, "Principal", src_balanz)
+    asset_bma = make_asset(db_session, "BMA")
+    assert asset_bma.asset_type == "unknown"
+    make_position(
+        db_session,
+        portfolio,
+        asset_bma,
+        "BMA",
+        quantity=65,
+        valuation=613403.05,
+        currency="ARS",
+    )
+    db_session.commit()
+
+    def fake_get_quote(ticker, exchange=None, instrument_type=None):
+        assert ticker == "BMA"
+        assert exchange == "BYMA"
+        assert instrument_type == "EQUITY"
+        now = datetime(2026, 4, 30, tzinfo=timezone.utc)
+        return PriceResult(
+            input_ticker="BMA",
+            resolved_symbol="BMA.BA",
+            source="test",
+            price=Decimal("10890.00"),
+            currency="ARS",
+            timestamp=now,
+            fetched_at=now,
+            instrument_type="EQUITY",
+            exchange="BYMA",
+            quote_unit="PRICE",
+            status="OK",
+            is_stale=False,
+            error=None,
+        )
+
+    monkeypatch.setattr("src.services.portfolio_engine.MarketDataService.get_quote", fake_get_quote)
+
+    result = consolidate(db_session)
+    bma = result["by_asset"][0]
+
+    assert bma["market_value"] == pytest.approx(707850.0)
+    assert bma["valuation_status"] == "OK"
+    assert bma["valuation_trace"]["resolved_symbol"] == "BMA.BA"
 
 
 def test_consolidate_uses_dynamic_quote_for_balanz_ypfd(monkeypatch, db_session):

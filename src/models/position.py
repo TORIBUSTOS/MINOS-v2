@@ -16,6 +16,12 @@ class Position(Base):
     currency: Mapped[str] = mapped_column(String(10), nullable=False)
     valuation: Mapped[float] = mapped_column(Float, nullable=False)
     valuation_date: Mapped[date] = mapped_column(Date, nullable=False)
+    unit_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    avg_cost: Mapped[float | None] = mapped_column(Float, nullable=True)
+    cost_basis: Mapped[float | None] = mapped_column(Float, nullable=True)
+    pnl_absolute: Mapped[float | None] = mapped_column(Float, nullable=True)
+    pnl_percentage: Mapped[float | None] = mapped_column(Float, nullable=True)
+    dpt: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     load_type: Mapped[str] = mapped_column(String(20), nullable=False)
     validation_status: Mapped[str] = mapped_column(String(20), default="pending")

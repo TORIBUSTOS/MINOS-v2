@@ -11,12 +11,13 @@ from src.models.portfolio import Portfolio
 from src.models.position import Position
 from src.models.source import Source
 from src.services.market_data import MarketDataService, PriceResult
+from src.services.normalization import cedear_underlying, infer_asset_type
 
 
 MONEY_QUANT = Decimal("0.01")
 PCT_QUANT = Decimal("0.0001")
 TRACE_PCT_QUANT = Decimal("0.01")
-SUPPORTED_DYNAMIC_ASSET_TYPES = {"EQUITY"}
+SUPPORTED_DYNAMIC_ASSET_TYPES = {"EQUITY", "CEDEAR"}
 VALUATION_STATUS_NO_DYNAMIC_QUOTE = "NO_DYNAMIC_QUOTE"
 
 
@@ -35,7 +36,10 @@ def _pct(part: Decimal, total: Decimal) -> float:
 
 
 def _quote_context(pos: Position) -> tuple[str | None, str | None]:
-    asset_type = (pos.asset.asset_type or "").upper() if pos.asset else ""
+    asset_type = infer_asset_type(
+        pos.ticker,
+        pos.asset.asset_type if pos.asset else None,
+    )
     if asset_type not in SUPPORTED_DYNAMIC_ASSET_TYPES:
         return None, None
     if pos.currency == "ARS":
@@ -73,7 +77,8 @@ def _fallback_trace(
     status: str = "FALLBACK_STORED_VALUATION",
 ) -> dict:
     quantity = _decimal(pos.quantity)
-    cost_basis = _decimal(pos.valuation)
+    cost_basis = _decimal(pos.cost_basis if pos.cost_basis is not None else pos.valuation)
+    market_value = _decimal(pos.valuation)
     avg_cost = cost_basis / quantity if quantity else Decimal("0")
     return {
         "input_ticker": pos.ticker,
@@ -91,17 +96,17 @@ def _fallback_trace(
         "is_stale": True,
         "error": error,
         "quantity": _to_float(quantity),
-        "avg_cost": _to_float(avg_cost),
-        "market_value": _to_float(cost_basis),
+        "avg_cost": _to_float(_decimal(pos.avg_cost) if pos.avg_cost is not None else avg_cost),
+        "market_value": _to_float(market_value),
         "cost_basis": _to_float(cost_basis),
-        "pnl_absolute": 0.0,
-        "pnl_percentage": 0.0,
+        "pnl_absolute": _to_float(_decimal(pos.pnl_absolute) if pos.pnl_absolute is not None else market_value - cost_basis),
+        "pnl_percentage": _to_float(_decimal(pos.pnl_percentage), TRACE_PCT_QUANT) if pos.pnl_percentage is not None else _to_float((market_value - cost_basis) / cost_basis * Decimal("100"), TRACE_PCT_QUANT) if cost_basis else 0.0,
     }
 
 
 def _position_valuation(pos: Position) -> dict:
     quantity = _decimal(pos.quantity)
-    cost_basis = _decimal(pos.valuation)
+    cost_basis = _decimal(pos.cost_basis if pos.cost_basis is not None else pos.valuation)
     exchange, instrument_type = _quote_context(pos)
 
     if instrument_type is None:
@@ -123,11 +128,15 @@ def _position_valuation(pos: Position) -> dict:
         market_value = quantity * quote.price
         trace = _quote_trace(quote, quantity, market_value, cost_basis)
     else:
-        market_value = cost_basis
+        market_value = _decimal(pos.valuation)
         trace = _fallback_trace(pos, exchange, instrument_type, error, fallback_status)
 
-    pnl_absolute = market_value - cost_basis
-    pnl_percentage = (pnl_absolute / cost_basis * Decimal("100")) if cost_basis else Decimal("0")
+    pnl_absolute = _decimal(pos.pnl_absolute) if pos.pnl_absolute is not None else market_value - cost_basis
+    pnl_percentage = (
+        _decimal(pos.pnl_percentage)
+        if pos.pnl_percentage is not None
+        else (pnl_absolute / cost_basis * Decimal("100")) if cost_basis else Decimal("0")
+    )
     return {
         "market_value": market_value,
         "cost_basis": cost_basis,
@@ -177,16 +186,23 @@ def consolidate(db: Session) -> dict:
     asset_pnl: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     asset_portfolios: dict[str, set] = defaultdict(set)
     asset_traces: dict[str, list[dict]] = defaultdict(list)
+    asset_types: dict[str, str] = {}
+    asset_underlyings: dict[str, str | None] = {}
     for pos, port, _, valuation in valued_rows:
+        asset_type = infer_asset_type(pos.ticker, pos.asset.asset_type if pos.asset else None)
         asset_val[pos.ticker] += valuation["market_value"]
         asset_cost[pos.ticker] += valuation["cost_basis"]
         asset_pnl[pos.ticker] += valuation["pnl_absolute"]
         asset_portfolios[pos.ticker].add(port.name)
         asset_traces[pos.ticker].append(valuation["trace"])
+        asset_types[pos.ticker] = asset_type
+        asset_underlyings[pos.ticker] = cedear_underlying(pos.ticker) if asset_type == "CEDEAR" else None
 
     by_asset = [
         {
             "ticker": ticker,
+            "asset_type": asset_types.get(ticker, "unknown"),
+            "underlying": asset_underlyings.get(ticker),
             "valuation": _to_float(val),
             "market_value": _to_float(val),
             "cost_basis": _to_float(asset_cost[ticker]),

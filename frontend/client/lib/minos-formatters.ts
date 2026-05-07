@@ -190,11 +190,34 @@ export const TICKER_CATEGORIES: Record<string, string> = {
   IRCPO: "Corporativos",
 }
 
+export const CEDEAR_UNDERLYINGS: Record<string, string> = {
+  AAPL: "Apple Inc.",
+  AMZN: "Amazon.com Inc.",
+  DIA: "SPDR Dow Jones Industrial Average ETF",
+  EEM: "iShares MSCI Emerging Markets ETF",
+  GOOGL: "Alphabet Inc.",
+  KO: "The Coca-Cola Company",
+  MELI: "MercadoLibre Inc.",
+  META: "Meta Platforms Inc.",
+  MSFT: "Microsoft Corporation",
+  NFLX: "Netflix Inc.",
+  NVDA: "NVIDIA Corporation",
+  QQQ: "Invesco QQQ Trust",
+  SPY: "SPDR S&P 500 ETF",
+  TSLA: "Tesla Inc.",
+  TSM: "Taiwan Semiconductor Manufacturing Company",
+}
+
 /**
  * Heuristic to categorize a ticker based on the map or its name.
  */
-export function getAssetCategory(ticker: string): string {
+export function getAssetCategory(ticker: string, assetType?: string | null): string {
   const upperTicker = ticker.toUpperCase()
+  const normalizedType = assetType?.toUpperCase()
+  if (normalizedType === "CEDEAR") return "Cedears"
+  if (normalizedType === "EQUITY") return "Acciones"
+  if (normalizedType === "BOND") return "Bonos"
+  if (normalizedType === "FUND") return "Fondos"
   if (TICKER_CATEGORIES[upperTicker]) return TICKER_CATEGORIES[upperTicker]
   
   if (
@@ -208,4 +231,9 @@ export function getAssetCategory(ticker: string): string {
   }
   
   return "Otros"
+}
+
+export function getCedearUnderlying(ticker: string, underlying?: string | null): string | null {
+  if (underlying) return underlying
+  return CEDEAR_UNDERLYINGS[ticker.toUpperCase()] ?? null
 }

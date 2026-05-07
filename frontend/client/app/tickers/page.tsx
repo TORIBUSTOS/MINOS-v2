@@ -10,13 +10,21 @@ import {
   Activity,
   ChevronDown,
   ChevronRight,
-  TrendingDown,
-  Dot
 } from "lucide-react"
-import { SectionPanel, SectionHeader, GlowOrb, LoadingState, ErrorState } from "@/components/dashboard/dashboard-ui"
+import {
+  EmptyState,
+  ErrorState,
+  FinancialMetric,
+  GlowOrb,
+  LoadingState,
+  MobileMetricCard,
+  PageHeader,
+  ResponsiveFinancialTable,
+  SectionPanel,
+} from "@/components/dashboard/dashboard-ui"
 import { useUnifiedTickers, useSignals } from "@/hooks/use-minos"
 import type { SignalValue } from "@/types/minos"
-import { formatARS, formatPctAlloc, assetColor, getAssetCategory } from "@/lib/minos-formatters"
+import { formatARS, assetColor, getAssetCategory, getCedearUnderlying } from "@/lib/minos-formatters"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -76,6 +84,18 @@ export default function TickersPage() {
     [signals]
   )
 
+  const sortedData = React.useMemo(
+    () => [...(data ?? [])].sort((a, b) => b.presence - a.presence),
+    [data]
+  )
+
+  const filteredData = React.useMemo(
+    () => sortedData.filter(t =>
+      t.ticker.toLowerCase().includes(search.toLowerCase())
+    ),
+    [search, sortedData]
+  )
+
   if (loading && !data) return <LoadingState />
   if (error) return <ErrorState error={error} refetch={refetch} />
   if (!data) return null
@@ -84,24 +104,14 @@ export default function TickersPage() {
     setExpandedTickers(prev => ({ ...prev, [ticker]: !prev[ticker] }))
   }
 
-  const sortedData = React.useMemo(
-    () => [...data].sort((a, b) => b.presence - a.presence),
-    [data]
-  )
-
-  const filteredData = sortedData.filter(t => 
-    t.ticker.toLowerCase().includes(search.toLowerCase())
-  )
-
   return (
     <div className="flex flex-col gap-6 animate-fade-up">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Tickers Unificados</h1>
-          <p className="text-muted-foreground text-sm font-medium">Consolidación cross-portfolio y señales de mercado.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative w-64">
+      <PageHeader
+        title="Tickers Unificados"
+        subtitle="Consolidación cross-portfolio y señales de mercado."
+        actions={
+          <>
+          <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input 
               placeholder="Buscar ticker..." 
@@ -120,8 +130,9 @@ export default function TickersPage() {
               <TooltipContent side="bottom">Actualizar señales</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Stats Summary Cards */}
@@ -185,6 +196,8 @@ export default function TickersPage() {
       </div>
 
       <SectionPanel>
+        <ResponsiveFinancialTable
+          table={
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -206,9 +219,10 @@ export default function TickersPage() {
                 </TableRow>
               ) : (
                 filteredData.map((ticker) => {
-                  const category = getAssetCategory(ticker.ticker)
+                  const category = getAssetCategory(ticker.ticker, ticker.asset_type)
                   const totalValuation = ticker.entries.reduce((sum, e) => sum + e.valuation, 0)
                   const isExpanded = expandedTickers[ticker.ticker]
+                  const underlying = getCedearUnderlying(ticker.ticker, ticker.underlying)
 
                   return (
                     <React.Fragment key={ticker.ticker}>
@@ -234,6 +248,11 @@ export default function TickersPage() {
                               <div className="flex flex-col leading-none">
                                 <span className="font-display font-bold text-sm tracking-tight">{ticker.ticker}</span>
                                 <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">{category}</span>
+                                {underlying ? (
+                                  <span className="mt-1 max-w-[180px] truncate text-[10px] text-muted-foreground">
+                                    Suby.: {underlying}
+                                  </span>
+                                ) : null}
                               </div>
                             </div>
                         </TableCell>
@@ -308,6 +327,57 @@ export default function TickersPage() {
             </TableBody>
           </Table>
         </div>
+          }
+          cards={
+            filteredData.length === 0 ? (
+              <EmptyState title="No se encontraron tickers" description="Probá limpiar la búsqueda o cargar instrumentos." />
+            ) : (
+              filteredData.map((ticker) => {
+                const category = getAssetCategory(ticker.ticker, ticker.asset_type)
+                const totalValuation = ticker.entries.reduce((sum, e) => sum + e.valuation, 0)
+                const isExpanded = expandedTickers[ticker.ticker]
+                const signal = signalMap[ticker.ticker] ?? "NEUTRAL"
+                const underlying = getCedearUnderlying(ticker.ticker, ticker.underlying)
+                return (
+                  <MobileMetricCard
+                    key={ticker.ticker}
+                    title={ticker.ticker}
+                    subtitle={underlying ? `Subyacente: ${underlying}` : category}
+                    accent={assetColor(category)}
+                    meta={<SignalBadge signal={signal} />}
+                    action={
+                      <Collapsible open={isExpanded} onOpenChange={() => toggleExpand(ticker.ticker)}>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-full rounded-md text-xs font-bold text-primary hover:bg-primary/10">
+                            {isExpanded ? "Ocultar detalle" : "Ver detalle"}
+                            {isExpanded ? <ChevronDown className="ml-2 size-4" /> : <ChevronRight className="ml-2 size-4" />}
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-3 space-y-2">
+                          {ticker.entries.map((entry, index) => (
+                            <div key={`${entry.portfolio}-${index}`} className="rounded-lg border border-border/35 bg-background/35 p-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{entry.portfolio}</span>
+                                <span className="font-mono text-sm font-bold text-foreground">{formatARS(entry.valuation)}</span>
+                              </div>
+                              <div className="mt-2 flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground">Cantidad</span>
+                                <span className="font-mono font-bold">{entry.quantity.toLocaleString()}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    }
+                  >
+                    <FinancialMetric label="Carteras" value={`${ticker.presence}`} />
+                    <FinancialMetric label="Valuación" value={formatARS(totalValuation)} className="text-[12px]" />
+                  </MobileMetricCard>
+                )
+              })
+            )
+          }
+        />
       </SectionPanel>
     </div>
   )

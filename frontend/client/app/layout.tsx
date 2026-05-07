@@ -44,7 +44,7 @@ export default function RootLayout({
           <AppSidebar />
           <SidebarInset>
             <AppHeader />
-            <main className="flex-1 p-4 lg:p-6 overflow-x-hidden">
+            <main className="flex-1 overflow-x-hidden p-4 pb-8 lg:p-6">
               {children}
             </main>
           </SidebarInset>

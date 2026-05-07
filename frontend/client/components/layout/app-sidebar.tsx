@@ -149,7 +149,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="hidden p-4 md:flex">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton

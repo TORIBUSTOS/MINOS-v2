@@ -21,7 +21,7 @@ export function MarketWidget() {
   const prices = marketData?.prices ? Object.entries(marketData.prices) : []
 
   return (
-    <SectionPanel className="flex flex-col h-full">
+    <SectionPanel className="flex min-h-[260px] flex-col">
       <GlowOrb className="w-24 h-24 -top-12 -left-12 bg-chart-3/10" />
       <SectionHeader title="Mercado en Vivo" subtitle="Precios sugeridos y cotizaciones">
         <Button 

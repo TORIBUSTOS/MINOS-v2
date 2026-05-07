@@ -130,6 +130,155 @@ export function SectionHeader({
   )
 }
 
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+}: {
+  title: string
+  subtitle: string
+  actions?: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground font-display sm:text-3xl">
+          {title}
+        </h1>
+        <p className="mt-1 text-sm font-medium leading-snug text-muted-foreground">
+          {subtitle}
+        </p>
+      </div>
+      {actions ? (
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+          {actions}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+export function EmptyState({
+  icon: Icon = Wallet,
+  title,
+  description,
+  action,
+}: {
+  icon?: React.ElementType
+  title: string
+  description?: string
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/50 bg-card/30 p-6 text-center">
+      <div className="flex size-12 items-center justify-center rounded-xl border border-primary/15 bg-primary/10 text-primary">
+        <Icon className="size-6" />
+      </div>
+      <div>
+        <p className="text-sm font-bold text-foreground">{title}</p>
+        {description ? (
+          <p className="mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        ) : null}
+      </div>
+      {action}
+    </div>
+  )
+}
+
+export function MobileMetricCard({
+  title,
+  subtitle,
+  accent,
+  meta,
+  children,
+  action,
+}: {
+  title: string
+  subtitle?: string
+  accent?: string
+  meta?: React.ReactNode
+  children: React.ReactNode
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="rounded-xl border border-border/50 bg-card/45 p-4 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div
+            className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-background/60 text-xs font-black text-foreground"
+            style={accent ? { borderLeft: `4px solid ${accent}` } : undefined}
+          >
+            {title.slice(0, 4)}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-base font-black leading-tight text-foreground font-display">
+              {title}
+            </p>
+            {subtitle ? (
+              <p className="mt-0.5 truncate text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {subtitle}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        {meta ? <div className="shrink-0 text-right">{meta}</div> : null}
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        {children}
+      </div>
+      {action ? <div className="mt-4 border-t border-border/35 pt-3">{action}</div> : null}
+    </div>
+  )
+}
+
+export function FinancialMetric({
+  label,
+  value,
+  tone = "default",
+  className = "",
+}: {
+  label: string
+  value: React.ReactNode
+  tone?: "default" | "muted" | "gain" | "loss" | "primary"
+  className?: string
+}) {
+  const toneClass = {
+    default: "text-foreground",
+    muted: "text-muted-foreground",
+    gain: "text-fin-gain",
+    loss: "text-fin-loss",
+    primary: "text-primary",
+  }[tone]
+
+  return (
+    <div className="min-w-0 rounded-lg border border-border/35 bg-background/35 px-3 py-2">
+      <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <p className={`mt-1 truncate text-[13px] font-bold font-mono sm:text-sm ${toneClass} ${className}`}>
+        {value}
+      </p>
+    </div>
+  )
+}
+
+export function ResponsiveFinancialTable({
+  table,
+  cards,
+}: {
+  table: React.ReactNode
+  cards: React.ReactNode
+}) {
+  return (
+    <>
+      <div className="hidden md:block">{table}</div>
+      <div className="grid grid-cols-1 gap-3 md:hidden">{cards}</div>
+    </>
+  )
+}
+
 export function LoadingState({ message = "Cargando datos financieros..." }: { message?: string }) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">

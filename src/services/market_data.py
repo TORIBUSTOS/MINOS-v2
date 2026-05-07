@@ -14,9 +14,10 @@ STATUS_FETCH_ERROR = "FETCH_ERROR"
 
 
 def resolve_symbol(ticker: str, exchange: str | None = None, instrument_type: str | None = None) -> str:
-    if exchange == "BYMA" and instrument_type == "EQUITY":
-        return f"{ticker}.BA"
-    return ticker
+    normalized = ticker.upper()
+    if exchange == "BYMA" and instrument_type in {"EQUITY", "CEDEAR"}:
+        return normalized if normalized.endswith(".BA") else f"{normalized}.BA"
+    return normalized
 
 
 @dataclass
@@ -224,6 +225,19 @@ class MarketDataService:
             resolved_symbol = resolve_symbol(ticker)
             cls._cache.pop(resolved_symbol, None)
             results[ticker] = cls.get_quote(ticker)
+        return results
+
+    @classmethod
+    def refresh_quote_contexts(
+        cls,
+        contexts: list[tuple[str, str | None, str | None]],
+    ) -> dict[str, PriceResult]:
+        """Fuerza refresh con exchange/tipo de instrumento, preservando ticker de entrada."""
+        results: dict[str, PriceResult] = {}
+        for ticker, exchange, instrument_type in contexts:
+            resolved_symbol = resolve_symbol(ticker, exchange, instrument_type)
+            cls._cache.pop(resolved_symbol, None)
+            results[ticker] = cls.get_quote(ticker, exchange=exchange, instrument_type=instrument_type)
         return results
 
     @classmethod

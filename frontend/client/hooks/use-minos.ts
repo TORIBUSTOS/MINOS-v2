@@ -14,6 +14,8 @@ import { useState, useEffect, useCallback } from "react"
 import { MinosAPI, MinosApiError } from "@/lib/minos-api"
 import type {
   ConsolidatedPortfolio,
+  IngestFileResponse,
+  IngestPreviewResponse,
   SourceSummary,
   CurrencySummary,
   Portfolio,
@@ -23,6 +25,7 @@ import type {
   TickerSignal,
   PortfolioStatus,
   ReallocationSuggestion,
+  ResetUploadedDataResponse,
 } from "@/types/minos"
 
 const MINOS_REFRESH_EVENT = "minos:refresh"
@@ -218,22 +221,21 @@ export function useRefreshPrices() {
 export function useFileUpload() {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<MinosApiError | Error | null>(null)
-  const [result, setResult]   = useState<{
-    positions_created: number
-    load_record_id: number
-  } | null>(null)
+  const [result, setResult]   = useState<IngestFileResponse | null>(null)
 
   const upload = useCallback(async (
     file: File,
     sourceName: string,
     portfolioName: string,
+    forceConfirm = false,
   ) => {
     setLoading(true)
     setError(null)
     setResult(null)
     try {
-      const res = await MinosAPI.uploadFile(file, sourceName, portfolioName)
+      const res = await MinosAPI.uploadFile(file, sourceName, portfolioName, forceConfirm)
       setResult(res)
+      triggerMinosRefresh()
       return res
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e))
@@ -245,6 +247,31 @@ export function useFileUpload() {
   }, [])
 
   return { upload, loading, error, result }
+}
+
+export function useFilePreview() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<MinosApiError | Error | null>(null)
+  const [result, setResult] = useState<IngestPreviewResponse | null>(null)
+
+  const preview = useCallback(async (file: File) => {
+    setLoading(true)
+    setError(null)
+    setResult(null)
+    try {
+      const res = await MinosAPI.previewFile(file)
+      setResult(res)
+      return res
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e))
+      setError(err)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  return { preview, loading, error, result, setResult }
 }
 
 /**
@@ -270,4 +297,33 @@ export function useCreatePosition() {
   }, [])
 
   return { add, loading, error }
+}
+
+/**
+ * Deletes only local uploaded/manual data and keeps API/connector data intact.
+ */
+export function useResetUploadedData() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<MinosApiError | Error | null>(null)
+  const [result, setResult] = useState<ResetUploadedDataResponse | null>(null)
+
+  const reset = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    setResult(null)
+    try {
+      const res = await MinosAPI.resetUploadedData()
+      setResult(res)
+      triggerMinosRefresh()
+      return res
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e))
+      setError(err)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  return { reset, loading, error, result }
 }

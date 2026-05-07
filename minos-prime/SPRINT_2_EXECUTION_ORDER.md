@@ -1,7 +1,7 @@
 # MINOS Sprint 2 — Execution Order + Failover Rules
 
 **Sprint:** Broker-Grade Valuation Core  
-**Estado:** Activo  
+**Estado:** Integrado localmente / requiere formalizacion de cierre  
 **Fuente de gobierno:** Trinity → `projects/MINOS/sprints/sprint_2_broker_grade_core.md`  
 **Regla central:** primero verdad financiera, después inteligencia.
 
@@ -15,6 +15,35 @@ Ningún agente puede ejecutar el bloque siguiente si el bloque anterior no cumpl
 
 ```text
 BN-S2-DIAG -> BN-S2-01 -> BN-S2-02 -> BN-S2-03 -> BN-S2-04 -> BN-S2-05
+```
+
+### Estado real al 2026-05-01
+
+Este documento nacio como orden estricto de ejecucion, pero el working tree local ya contiene integraciones que cruzan varios BNs:
+
+- BN-S2-DIAG: completado.
+- BN-S2-01: completado.
+- BN-S2-02: completado.
+- BN-S2-03: integrado para `EQUITY`/`CEDEAR` soportados usando `PriceResult` en `portfolio_engine.py`.
+- BN-S2-04: integrado en capa de intelligence para bloquear señales no confiables segun `valuation_status`.
+- BN-S2-05: integrado parcialmente en UI de instrumentos/tickers; falta formalizar tabla broker-like completa si se quiere cerrar el BN como producto.
+
+Ver contexto vigente en `CODEX.md`, `README.md` y `AGENTS.md`.
+
+Verificaciones recientes:
+
+```powershell
+py -3.12 -m pytest tests/test_api_market.py tests/test_instrument_resolver.py tests/test_market_data.py tests/test_portfolio_engine.py -v
+py -3.12 -m pytest tests/test_statement_ingestion.py tests/test_ingestion.py tests/test_admin_reset.py tests/test_cors.py -v
+```
+
+Resultados recientes: pricing/portfolio `40 passed`; ingestion/reset/CORS `14 passed`.
+
+Verificacion real yfinance local:
+
+```text
+POST /api/v1/market/refresh -> YPFD: 67650.0, BMA: 10890.0
+GET /api/v1/portfolio/summary -> valuation_status OK, resolved_symbol YPFD.BA/BMA.BA
 ```
 
 ---
@@ -264,13 +293,23 @@ Frenar si PriceResult exige migración de base de datos o rediseño mayor.
 
 # BN-S2-03 — Valuación dinámica broker-grade en PortfolioEngine
 
-**Estado:** Pendiente.  
+**Estado:** Integrado localmente para acciones BYMA conocidas; pendiente formalizar cierre/golden actualizado.  
 **Tipo:** Core financiero.  
 **Depende de:** BN-S2-02 aprobado.
 
 ## Objetivo
 
 PortfolioEngine debe calcular valuación broker-grade usando Quote/PriceResult trazable.
+
+## Estado local 2026-05-01
+
+- `src/services/portfolio_engine.py` ya consume `MarketDataService.get_quote(...)`.
+- Usa `Decimal` para calculos monetarios.
+- Expone `market_value`, `cost_basis`, `pnl_absolute`, `pnl_percentage`, `portfolio_weight`, `valuation_status`, `valuation_trace`, `valuation_traces`.
+- Inferencia de acciones BYMA conocidas vive en `src/services/normalization.py::infer_asset_type`, para cubrir assets viejos con `asset_type="unknown"`.
+- `SUPPORTED_DYNAMIC_ASSET_TYPES = {"EQUITY", "CEDEAR"}`.
+- Bonos/fondos/ON siguen con valuacion almacenada salvo proveedor especifico.
+- `POST /api/v1/market/refresh` usa contexto (`exchange`, `instrument_type`) y resuelve `.BA`.
 
 ## Fórmulas para acciones
 
@@ -336,13 +375,19 @@ Frenar si se requiere cambiar modelos persistentes o rehacer ingestion.
 
 # BN-S2-04 — valuation_status bloquea Intelligence
 
-**Estado:** Pendiente.  
+**Estado:** Integrado localmente; requiere validar cierre formal contra criterios de producto.  
 **Tipo:** Protección de decisión.  
 **Depende de:** BN-S2-03 aprobado.
 
 ## Objetivo
 
 Evitar que MINOS emita señales como válidas cuando la valuación no es confiable.
+
+## Estado local 2026-05-01
+
+- La API de intelligence expone campos de bloqueo (`signal_status`, `is_actionable`, `valuation_status`, `block_reason`) segun tests existentes.
+- Tests relevantes: `tests/test_api_intelligence.py`, `tests/test_intelligence.py`.
+- Mantener regla: si `valuation_status != OK`, la señal no debe considerarse accionable.
 
 ## Regla funcional
 
@@ -378,13 +423,20 @@ Frenar si no existe todavía `valuation_status` desde BN-S2-03.
 
 # BN-S2-05 — UI broker-like mínima
 
-**Estado:** Pendiente.  
+**Estado:** Parcialmente integrado; pendiente cierre visual broker-like completo.  
 **Tipo:** Visualización.  
 **Depende de:** BN-S2-04 aprobado.
 
 ## Objetivo
 
 Mostrar una tabla mínima tipo broker con verdad financiera antes de inteligencia.
+
+## Estado local 2026-05-01
+
+- Frontend consume campos reales de portfolio/pricing.
+- `frontend/client/app/instruments/page.tsx` muestra instrumentos y señales subordinadas a datos backend.
+- `frontend/client/app/tickers/page.tsx` corregido para evitar hooks condicionales.
+- Falta validar visualmente contra tabla broker completa: precio, PPC, V. Actual, V. Inicial, rendimiento, % cartera, estado pricing y fuente en una vista única.
 
 ## Columnas mínimas
 

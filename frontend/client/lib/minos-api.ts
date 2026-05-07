@@ -7,6 +7,8 @@
 import type {
   Position,
   PositionManualCreate,
+  IngestFileResponse,
+  IngestPreviewResponse,
   ConsolidatedPortfolio,
   SourceSummary,
   CurrencySummary,
@@ -17,6 +19,7 @@ import type {
   TickerSignal,
   PortfolioStatus,
   ReallocationSuggestion,
+  ResetUploadedDataResponse,
 } from "@/types/minos"
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -153,11 +156,13 @@ export const MinosAPI = {
     file: File,
     sourceName: string,
     portfolioName: string,
-  ): Promise<{ positions_created: number; load_record_id: number }> {
+    forceConfirm = false,
+  ): Promise<IngestFileResponse> {
     const form = new FormData()
     form.append("file", file)
     form.append("source_name", sourceName)
     form.append("portfolio_name", portfolioName)
+    form.append("force_confirm", String(forceConfirm))
     // Note: no Content-Type header — browser sets multipart boundary
     const res = await fetch(`${BASE_URL}/api/v1/ingest/file`, {
       method: "POST",
@@ -168,5 +173,30 @@ export const MinosAPI = {
       throw new MinosApiError(res.status, body?.detail ?? res.statusText)
     }
     return res.json()
+  },
+
+  /** POST /api/v1/ingest/preview — parse upload without persisting */
+  async previewFile(file: File): Promise<IngestPreviewResponse> {
+    const form = new FormData()
+    form.append("file", file)
+    const res = await fetch(`${BASE_URL}/api/v1/ingest/preview`, {
+      method: "POST",
+      body: form,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new MinosApiError(res.status, body?.detail ?? res.statusText)
+    }
+    return res.json()
+  },
+
+  // ── Admin ─────────────────────────────────────────────────────────────────
+
+  /** POST /api/v1/admin/reset-uploaded-data — delete local uploaded/manual data only */
+  async resetUploadedData(): Promise<ResetUploadedDataResponse> {
+    return request<ResetUploadedDataResponse>("/api/v1/admin/reset-uploaded-data", {
+      method: "POST",
+      body: JSON.stringify({ confirm: true }),
+    })
   },
 }

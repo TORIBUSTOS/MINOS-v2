@@ -143,7 +143,7 @@ def test_ingest_reuses_existing_source_and_portfolio(client, db_session):
         files={"file": ("s2.csv", csv_content, "text/csv")},
     )
     # Source y Portfolio no se duplican
-    assert db_session.query(Source).filter_by(name="Balanz").count() == 1
+    assert db_session.query(Source).filter_by(name="BALANZ").count() == 1
     assert db_session.query(Portfolio).filter_by(name="Principal").count() == 1
 
 

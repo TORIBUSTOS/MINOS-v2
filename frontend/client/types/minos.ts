@@ -52,10 +52,45 @@ export interface PositionManualCreate {
   valuation_date: string          // "YYYY-MM-DD"
 }
 
+export interface IngestFileResponse {
+  processed: number
+  rejected: number
+  warnings: string[]
+}
+
+export interface IngestPreviewRow {
+  ticker: string
+  cantidad: number
+  moneda: string
+  precio: number | null
+  fecha: string
+  ppc: number | null
+  valuacion: number
+  valor_inicial: number | null
+  rendimiento: number | null
+  pct_rendimiento: number | null
+  dpt: number | null
+  asset_type: string
+  complete: boolean
+}
+
+export interface IngestPreviewResponse {
+  filename: string
+  detected_layout: string
+  can_confirm: boolean
+  missing_columns: string[]
+  rows: IngestPreviewRow[]
+  processed: number
+  rejected: number
+  warnings: string[]
+}
+
 // ── Portfolio Engine (BN-005) ─────────────────────────────────────────────────
 
 export interface AssetSummary {
   ticker: string
+  asset_type?: string
+  underlying?: string | null
   valuation: number
   market_value?: number
   cost_basis?: number
@@ -121,6 +156,8 @@ export interface TickerEntry {
 
 export interface UnifiedTicker {
   ticker: string
+  asset_type?: string
+  underlying?: string | null
   presence: number                // count of distinct portfolios
   entries: TickerEntry[]
 }
@@ -189,6 +226,14 @@ export interface ReallocationSuggestion {
   suggested_action: string
 }
 
+// ── Admin ────────────────────────────────────────────────────────────────────
+
+export interface ResetUploadedDataResponse {
+  positions_deleted: number
+  load_records_deleted: number
+  preserved_load_types: LoadType[]
+}
+
 // ── API endpoints map ─────────────────────────────────────────────────────────
 // Used for documentation. Actual calls go through MinosAPI class.
 
@@ -208,6 +253,8 @@ export const MINOS_ENDPOINTS = {
   allPrices:         "GET    /api/v1/market/prices",
   // Ingestion
   uploadFile:        "POST   /api/v1/ingest/file",
+  previewFile:       "POST   /api/v1/ingest/preview",
+  resetUploadedData: "POST   /api/v1/admin/reset-uploaded-data",
   // Intelligence
   signals:           "GET    /api/v1/intelligence/signals",
   portfolioStatus:   "GET    /api/v1/intelligence/portfolio-status",

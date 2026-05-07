@@ -45,3 +45,64 @@ def detect_duplicates(tickers: list[str]) -> list[str]:
             dupes.add(normalized)
         seen.add(normalized)
     return list(dupes)
+
+
+BYMA_EQUITY_TICKERS = {
+    "ALUA",
+    "BBAR",
+    "BMA",
+    "BYMA",
+    "CEPU",
+    "COME",
+    "CRES",
+    "EDN",
+    "GGAL",
+    "LOMA",
+    "MIRG",
+    "PAMP",
+    "SUPV",
+    "TECO2",
+    "TGNO4",
+    "TGSU2",
+    "TRAN",
+    "TXAR",
+    "VALO",
+    "YPFD",
+}
+
+CEDEAR_UNDERLYINGS = {
+    "AAPL": "Apple Inc.",
+    "AMZN": "Amazon.com Inc.",
+    "DIA": "SPDR Dow Jones Industrial Average ETF",
+    "EEM": "iShares MSCI Emerging Markets ETF",
+    "GOOGL": "Alphabet Inc.",
+    "KO": "The Coca-Cola Company",
+    "MELI": "MercadoLibre Inc.",
+    "META": "Meta Platforms Inc.",
+    "MSFT": "Microsoft Corporation",
+    "NFLX": "Netflix Inc.",
+    "NVDA": "NVIDIA Corporation",
+    "QQQ": "Invesco QQQ Trust",
+    "SPY": "SPDR S&P 500 ETF",
+    "TSLA": "Tesla Inc.",
+    "TSM": "Taiwan Semiconductor Manufacturing Company",
+}
+
+
+def infer_asset_type(ticker: str, current: str | None = None) -> str:
+    """Infere tipo mínimo de instrumento cuando la carga no lo trae."""
+    normalized = normalize_ticker(ticker).removesuffix(".BA")
+    current_type = (current or "unknown").strip().upper()
+    if current_type and current_type != "UNKNOWN":
+        return current_type
+    if normalized in CEDEAR_UNDERLYINGS:
+        return "CEDEAR"
+    if normalized in BYMA_EQUITY_TICKERS:
+        return "EQUITY"
+    return "unknown"
+
+
+def cedear_underlying(ticker: str) -> str | None:
+    """Retorna la acción/ETF subyacente conocida para un CEDEAR local."""
+    normalized = normalize_ticker(ticker).removesuffix(".BA")
+    return CEDEAR_UNDERLYINGS.get(normalized)
