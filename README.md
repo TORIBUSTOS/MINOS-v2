@@ -1,11 +1,47 @@
 # MINOS PRIME
 
-> Sistema de inteligencia patrimonial de TORO
+> Sistema operativo patrimonial e inteligencia financiera de TORO
+
+## Visión
+
+MINOS PRIME evoluciona desde un portfolio tracker hacia una terminal institucional de decisión.
+
+El objetivo del sistema es:
+
+- Consolidar patrimonio multi-fuente.
+- Centralizar posiciones, valuaciones y señales.
+- Integrar inteligencia técnica y contexto operativo.
+- Convertir datos financieros en decisiones accionables.
+- Funcionar como núcleo financiero del ecosistema TORO.
+
+---
+
+## Arquitectura General
+
+### Backend
+
+- FastAPI
+- SQLite
+- Python 3.12
+- yfinance
+- pandas
+- Scheduler async
+- Cache TTL de precios
+
+### Frontend
+
+- Next.js 16
+- React 19
+- Tailwind
+- UI institucional dark-mode
+- Dashboard tipo terminal financiera
+
+---
 
 ## Documentación
 
 La especificación completa vive en el repo Trinity:
-→ [github.com/TORIBUSTOS/Trinity](https://github.com/TORIBUSTOS/Trinity) — `projects/minos-prime/`
+→ https://github.com/TORIBUSTOS/Trinity — `projects/minos-prime/`
 
 | Doc | Descripción |
 |-----|-------------|
@@ -14,6 +50,8 @@ La especificación completa vive en el repo Trinity:
 | SPECS.md | Especificaciones funcionales del MVP |
 | ARCHITECTURE.md | Arquitectura conceptual y técnica |
 | MINOS_BN_BREAKDOWN.md | Bloques de ejecución |
+
+---
 
 ## Setup
 
@@ -29,39 +67,87 @@ npm run dev
 Backend local: `http://localhost:8800`
 Frontend local: `http://localhost:4400`
 
+---
+
 ## Estado Actual
 
-**Fase:** MINOS Prime v2 — Sprint 2 integrado localmente
-**Backend:** FastAPI + SQLite
-**Frontend:** Next.js 16 + React 19
+### Fase
 
-Capacidades activas:
+MINOS PRIME v2 — Sprint 2 integrado localmente
+
+### Stack
+
+| Capa | Estado |
+|---|---|
+| Backend API | Operativo |
+| Market Refresh | Operativo |
+| Valuación broker-grade | Operativa |
+| Parser Balanz PDF | Operativo |
+| Dashboard patrimonial | Operativo |
+| Signals Engine | Operativo |
+| Portfolio Summary | Operativo |
+| Sistema de ingestión | Operativo |
+
+---
+
+## Capacidades Activas
 
 - Dashboard patrimonial con API real.
+- Consolidación de instrumentos por ticker.
 - Carga manual de posiciones.
-- Importación masiva por CSV, Excel, PDF y capturas/imagenes.
-- Parser de resumen Balanz PDF con detección de acciones, bonos, CEDEARs, corporativos y fondos.
-- Valuación broker-grade para acciones BYMA conocidas usando yfinance (`BMA.BA`, `YPFD.BA`, etc.).
+- Importación masiva por CSV, Excel, PDF y capturas/imágenes.
+- Parser de resumen Balanz PDF.
+- Detección de acciones, CEDEARs, bonos, corporativos y fondos.
+- Valuación broker-grade para instrumentos BYMA usando `.BA`.
 - Cache de precios con TTL.
-- Señales de inteligencia y sugerencias de reasignación.
-- Reset seguro de datos cargados, preservando datos de API/conectores.
+- Señales BUY / HOLD / SELL.
+- Reasignación sugerida de cartera.
+- Reset seguro de datos cargados.
+- Portfolio summary consolidado.
+- Tabla institucional de instrumentos.
+
+---
 
 ## Sprint 2 — Broker-Grade Valuation Core
 
-Resumen:
+### Integrado
+
 - Resolución correcta de instrumentos BYMA (`.BA`)
 - Pricing trazable con contexto (`PriceResult`)
 - Valuación tipo broker (`market_value`, `pnl`, etc.)
 - Bloqueo de señales sin valuación confiable
-- UI tipo broker con tabla de instrumentos
+- Tabla institucional de posiciones
+- API de refresh market data
 
-Estado:
-INTEGRADO LOCALMENTE
+### Verificación Real
 
-Verificación real reciente:
+- `POST /api/v1/market/refresh` devolvió precios reales para `YPFD.BA` y `BMA.BA`
+- `GET /api/v1/portfolio/summary` mostró:
+  - `valuation_status: OK`
+  - `resolved_symbol: YPFD.BA`
+  - `resolved_symbol: BMA.BA`
 
-- `POST /api/v1/market/refresh` devolvió `YPFD: 67650.0` y `BMA: 10890.0`.
-- `GET /api/v1/portfolio/summary` mostró `valuation_status: OK` y `resolved_symbol: YPFD.BA/BMA.BA`.
+---
+
+## Roadmap Inmediato — Sprint 3
+
+### LIVE MARKET LAYER
+
+Próxima capa institucional:
+
+- Variación intradiaria (%)
+- Variación intradiaria ($)
+- Impacto diario sobre cartera
+- Estado LIVE/CACHE separado de BUY/HOLD/SELL
+- Session summary bar
+- Heatmap de rendimiento diario
+- Métricas de flujo y exposición
+
+Objetivo:
+
+Transformar MINOS PRIME desde un dashboard financiero hacia una terminal operativa viva.
+
+---
 
 ## Ingestión
 
@@ -71,7 +157,7 @@ Endpoint único:
 POST /api/v1/ingest/file
 ```
 
-Formatos:
+### Formatos soportados
 
 - `.csv`
 - `.xlsx`
@@ -82,11 +168,13 @@ Formatos:
 - `.jpeg`
 - `.webp`
 
-Notas:
+### Notas
 
 - PDF Balanz funciona por texto embebido.
-- Capturas/imagenes intentan OCR con `pytesseract`.
-- Para OCR de imagenes hace falta instalar el binario `tesseract` y dejarlo en `PATH`.
+- OCR usa `pytesseract`.
+- Para OCR hace falta instalar `tesseract` y dejarlo en `PATH`.
+
+---
 
 ## Endpoints Principales
 
@@ -107,7 +195,9 @@ Notas:
 | Estado cartera | `GET /api/v1/intelligence/portfolio-status` |
 | Reasignación | `GET /api/v1/intelligence/reallocation` |
 
-Reset seguro:
+---
+
+## Reset Seguro
 
 ```json
 { "confirm": true }
@@ -115,17 +205,39 @@ Reset seguro:
 
 Borra solo posiciones y registros de carga `file/manual`; preserva datos `api/visual` y catálogos.
 
+---
+
 ## Tests
 
 ```bash
 py -3.12 -m pytest tests/ -v
 ```
 
-Tests relevantes agregados:
+### Tests relevantes
 
 - `tests/test_api_market.py`
 - `tests/test_statement_ingestion.py`
 - `tests/test_admin_reset.py`
 - `tests/test_cors.py`
 
-Ver [CODEX.md](CODEX.md) y [AGENTS.md](AGENTS.md) para contexto operativo, gotchas y handoff entre agentes.
+---
+
+## Filosofía
+
+MINOS PRIME no busca solamente mostrar precios.
+
+Busca:
+
+- contexto
+- riesgo
+- exposición
+- timing
+- memoria histórica
+- inteligencia financiera
+- soporte de decisión
+
+El objetivo final es construir una terminal financiera institucional TORO.
+
+---
+
+Ver `CODEX.md` y `AGENTS.md` para contexto operativo, handoff entre agentes y arquitectura de colaboración.
