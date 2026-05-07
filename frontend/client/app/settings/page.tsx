@@ -1,7 +1,7 @@
 "use client"
 
-import React from "react"
-import { User, Bell, Shield, Database, Palette, Trash2 } from "lucide-react"
+import React, { useState, useEffect } from "react"
+import { User, Bell, Shield, Database, Palette, Trash2, CheckCircle } from "lucide-react"
 import { PageHeader, SectionPanel, SectionHeader } from "@/components/dashboard/dashboard-ui"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useResetUploadedData } from "@/hooks/use-minos"
 
+const PROFILE_KEY = "minos_profile"
+
 const SECTIONS = [
   { icon: User, label: "Perfil" },
   { icon: Bell, label: "Notificaciones" },
@@ -28,8 +30,32 @@ const SECTIONS = [
   { icon: Palette, label: "Apariencia" },
 ]
 
+function loadProfile() {
+  if (typeof window === "undefined") return { name: "Rodrigo Bustos", email: "rbustos@sanarte.com.ar" }
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return { name: "Rodrigo Bustos", email: "rbustos@sanarte.com.ar" }
+}
+
 export default function SettingsPage() {
   const { reset, loading, error, result } = useResetUploadedData()
+  const [name, setName] = useState("Rodrigo Bustos")
+  const [email, setEmail] = useState("rbustos@sanarte.com.ar")
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    const profile = loadProfile()
+    setName(profile.name)
+    setEmail(profile.email)
+  }, [])
+
+  function handleSave() {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify({ name, email }))
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
 
   return (
     <div className="flex max-w-4xl flex-col gap-6 animate-fade-up">
@@ -41,19 +67,37 @@ export default function SettingsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="name" className="text-xs font-bold text-muted-foreground">Nombre</Label>
-            <Input id="name" defaultValue="Mauricio Bustos" className="rounded-xl bg-muted/10 border-border/50 h-10" />
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="rounded-xl bg-muted/10 border-border/50 h-10"
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="email" className="text-xs font-bold text-muted-foreground">Email</Label>
-            <Input id="email" defaultValue="m.bustos@toro.holdings" className="rounded-xl bg-muted/10 border-border/50 h-10" />
+            <Input
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="rounded-xl bg-muted/10 border-border/50 h-10"
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="role" className="text-xs font-bold text-muted-foreground">Rol</Label>
             <Input id="role" defaultValue="Admin" disabled className="rounded-xl bg-muted/5 border-border/30 h-10 text-muted-foreground" />
           </div>
         </div>
-        <div className="mt-6">
-          <Button size="sm" className="rounded-xl font-bold shadow-lg shadow-primary/20">Guardar cambios</Button>
+        <div className="mt-6 flex items-center gap-3">
+          <Button size="sm" className="rounded-xl font-bold shadow-lg shadow-primary/20" onClick={handleSave}>
+            Guardar cambios
+          </Button>
+          {saved && (
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-500">
+              <CheckCircle className="size-3.5" />
+              Guardado
+            </span>
+          )}
         </div>
       </SectionPanel>
 
