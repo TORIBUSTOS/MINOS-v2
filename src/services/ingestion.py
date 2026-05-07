@@ -213,7 +213,36 @@ def _extract_pdf_text(content: bytes) -> str:
         raise ValueError("PDF no soportado: falta PyMuPDF/fitz en el entorno") from exc
 
     with fitz.open(stream=content, filetype="pdf") as doc:
-        return "\n".join(page.get_text("text") for page in doc)
+        text = "\n".join(page.get_text("text") for page in doc)
+
+    # Si el texto extraído es casi vacío, el PDF probablemente es una imagen escaneada.
+    # Intentamos OCR del rendered page como respaldo.
+    if len(text.strip()) < 50:
+        from PIL import Image
+        import pytesseract
+
+        try:
+            tesseract_exe = Path("C:/Program Files/Tesseract-OCR/tesseract.exe")
+            if tesseract_exe.exists():
+                pytesseract.pytesseract.tesseract_cmd = str(tesseract_exe)
+            user_tessdata = Path(os.environ.get("LOCALAPPDATA", "")) / "Tesseract-OCR" / "tessdata"
+            if user_tessdata.exists():
+                os.environ["TESSDATA_PREFIX"] = str(user_tessdata)
+
+            ocr_lines: list[str] = []
+            for page in doc:
+                mat = fitz.Matrix(4, 4)  # 4x zoom for sharp OCR
+                pix = page.get_pixmap(matrix=mat)
+                img = Image.open(BytesIO(pix.tobytes("png"))).convert("L")
+                if img.width < 1800:
+                    ratio = 1800 / img.width
+                    img = img.resize((1800, int(img.height * ratio)))
+                ocr_lines.append(pytesseract.image_to_string(img, lang="spa+eng", config="--psm 6"))
+            text = "\n".join(ocr_lines)
+        except Exception:
+            pass  # Mantenemos el texto original (vacío o casi vacío)
+
+    return text
 
 
 def _extract_image_text(content: bytes) -> str:
