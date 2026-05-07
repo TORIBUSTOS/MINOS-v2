@@ -170,18 +170,49 @@ def _parse_balanz_ocr_row_line(line: str, asset_type: str, valuation_date: date)
 
     # Layout completo Balanz sin fecha obligatoria:
     # cantidad, precio, ppc, v_actual, v_inicial, rendimiento, variacion..., pct_r, dpt
+    #
+    # OCR puede intercalar tokens de tiempo (HH:MM) entre precio y PPC.
+    # Tokens típicos tras ticker para una línea completa:
+    #   [0] cantidad
+    #   [1] precio  (puede venir con "$ ")
+    #   [2] hora-parte1  (ej. "16" de "16:19") — NO es ppc
+    #   [3] hora-parte2  (ej. "19" de "16:19") — NO es v_actual
+    #   [4] ppc
+    #   [5] v_actual     (con "$")
+    #   [6] v_inicial    (con "$")
+    #   [7] rendimiento  (con "$")
+    #
+    # Identificación de tokens de tiempo: dos enteros de 1-2 dígitos adyacentes
+    # en el string original (separados por ":") sugieren hora HH:MM.
+    # Ejemplo: "$ 19.840,00 16:19 13.671,87" → tokens [2]="16" [3]="19"
+    time_pair_match = re.search(r"(\d{1,2}):(\d{1,2})", rest)
+    has_time_tokens = bool(time_pair_match)
+    qty = _parse_number(values[0])
+    precio_raw = values[1] if len(values) > 1 else "0"
+    precio = _parse_number(precio_raw.replace("$", "").replace(",", "."))
+    if has_time_tokens:
+        ppc = _parse_number(values[4]) if len(values) > 4 else None
+        v_actual = _parse_number(values[5].replace("$", "").replace(",", "")) if len(values) > 5 else None
+        v_inicial = _parse_number(values[6].replace("$", "").replace(",", "")) if len(values) > 6 else None
+        rendimiento = _parse_number(values[7].replace("$", "").replace(",", "")) if len(values) > 7 else None
+    else:
+        ppc = _parse_number(values[2]) if len(values) > 2 else None
+        v_actual = _parse_number(values[3].replace("$", "").replace(",", "")) if len(values) > 3 else None
+        v_inicial = _parse_number(values[4].replace("$", "").replace(",", "")) if len(values) > 4 else None
+        rendimiento = _parse_number(values[5].replace("$", "").replace(",", "")) if len(values) > 5 else None
+
     pct_index = len(values) - 2 if len(values) >= 8 else None
     dpt_index = len(values) - 1 if len(values) >= 7 else None
     try:
         return {
             "ticker": ticker,
-            "cantidad": _parse_number(values[0]),
+            "cantidad": qty,
             "moneda": "ARS",
-            "precio": _parse_number(values[1]),
-            "ppc": _parse_number(values[2]),
-            "valuacion": _parse_number(values[3]),
-            "valor_inicial": _parse_number(values[4]),
-            "rendimiento": _parse_number(values[5]),
+            "precio": precio,
+            "ppc": ppc,
+            "valuacion": v_actual,
+            "valor_inicial": v_inicial,
+            "rendimiento": rendimiento,
             "pct_rendimiento": _parse_number(values[pct_index]) if pct_index is not None else None,
             "dpt": _parse_number(values[dpt_index]) if dpt_index is not None else None,
             "fecha": row_date or valuation_date,
