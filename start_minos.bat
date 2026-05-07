@@ -28,10 +28,16 @@ if not exist "%FRONT%\package.json" (
 echo [1] Levantando Backend en http://localhost:8800...
 start "MINOS Backend" /D "%BACK%" cmd /k py -3.12 -m uvicorn src.main:app --reload --port 8800
 
-timeout /t 2 /nobreak >nul
+timeout /t 4 /nobreak >nul
 
 echo [2] Levantando Frontend en http://localhost:4400...
 start "MINOS Frontend" /D "%FRONT%" cmd /k npm.cmd run dev
+
+timeout /t 4 /nobreak >nul
+
+echo [3] Abriendo Chrome en http://localhost:4400 ...
+start chrome "http://localhost:4400"
+start chrome "http://localhost:8800/docs"
 
 echo.
 echo ------------------------------------------
