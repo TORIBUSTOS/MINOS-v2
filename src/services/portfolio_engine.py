@@ -51,16 +51,35 @@ def _quote_trace(quote: PriceResult, quantity: Decimal, market_value: Decimal, c
     avg_cost = cost_basis / quantity if quantity else Decimal("0")
     pnl_absolute = market_value - cost_basis
     pnl_percentage = (pnl_absolute / cost_basis * Decimal("100")) if cost_basis else Decimal("0")
+
+    day_change: float | None = None
+    day_change_pct: float | None = None
+    day_impact: float | None = None
+    if (
+        quote.price is not None
+        and quote.previous_close is not None
+        and quote.previous_close > Decimal("0")
+        and quantity > Decimal("0")
+    ):
+        dc = quote.price - quote.previous_close
+        day_change = _to_float(dc)
+        day_change_pct = _to_float(dc / quote.previous_close * Decimal("100"), TRACE_PCT_QUANT)
+        day_impact = _to_float(dc * quantity)
+
     trace = asdict(quote)
     trace.update(
         {
             "price": _to_float(quote.price) if quote.price is not None else None,
+            "previous_close": _to_float(quote.previous_close) if quote.previous_close is not None else None,
             "quantity": _to_float(quantity),
             "avg_cost": _to_float(avg_cost),
             "market_value": _to_float(market_value),
             "cost_basis": _to_float(cost_basis),
             "pnl_absolute": _to_float(pnl_absolute),
             "pnl_percentage": _to_float(pnl_percentage, TRACE_PCT_QUANT),
+            "day_change": day_change,
+            "day_change_pct": day_change_pct,
+            "day_impact": day_impact,
             "valuation_status": quote.status,
             "timestamp": quote.timestamp.isoformat() if quote.timestamp else None,
             "fetched_at": quote.fetched_at.isoformat(),
@@ -85,6 +104,10 @@ def _fallback_trace(
         "resolved_symbol": pos.ticker,
         "source": "stored_position",
         "price": None,
+        "previous_close": None,
+        "day_change": None,
+        "day_change_pct": None,
+        "day_impact": None,
         "currency": pos.currency,
         "timestamp": None,
         "fetched_at": None,

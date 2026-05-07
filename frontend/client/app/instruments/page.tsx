@@ -50,6 +50,9 @@ type BrokerRow = {
   quantity: number | null
   price: number | null
   priceTime: string | null
+  dayChange: number | null
+  dayChangePct: number | null
+  dayImpact: number | null
   avgCost: number | null
   marketValue: number
   costBasis: number
@@ -89,6 +92,9 @@ function brokerRowFromAsset(asset: AssetSummary): BrokerRow {
     quantity: numberOrNull(trace.quantity),
     price: numberOrNull(trace.price),
     priceTime: trace.timestamp ?? trace.fetched_at ?? null,
+    dayChange: numberOrNull(trace.day_change),
+    dayChangePct: numberOrNull(trace.day_change_pct),
+    dayImpact: numberOrNull(trace.day_impact),
     avgCost: numberOrNull(trace.avg_cost),
     marketValue: asset.market_value ?? trace.market_value ?? asset.valuation,
     costBasis: asset.cost_basis ?? trace.cost_basis ?? asset.valuation,
@@ -112,6 +118,15 @@ function formatMaybeNumber(value: number | null): string {
 function formatPriceTime(value: string | null): string {
   if (!value) return "-"
   return formatRelativeTime(value)
+}
+
+/** Formato Balanz: "+380,00 (1,00%)" */
+function formatDayChange(change: number | null, pct: number | null): string {
+  if (change === null || pct === null) return "-"
+  const sign = change >= 0 ? "+" : ""
+  // strip currency symbol + any Unicode whitespace (Intl puede usar   o  )
+  const amount = formatARS(change).replace(/^\$\s*/u, "")
+  return `${sign}${amount} (${formatPct(pct)})`
 }
 
 function statusClassName(status: string): string {
@@ -286,7 +301,7 @@ export default function InstrumentsPage() {
           <ResponsiveFinancialTable
             table={
           <div className="overflow-x-auto border border-border/50 bg-card/25">
-            <div className="min-w-[1420px]">
+            <div className="min-w-[1700px]">
               {sections.map((section) => {
                 const color = assetColor(section.category)
 
@@ -306,6 +321,14 @@ export default function InstrumentsPage() {
                           <TableHead className="w-[120px] px-4 text-xs font-bold">Ticker</TableHead>
                           <TableHead className="w-[120px] text-right text-xs font-bold">Nominales</TableHead>
                           <TableHead className="w-[140px] text-right text-xs font-bold">Precio</TableHead>
+                          <TableHead className="w-[180px] text-right text-xs font-bold">
+                            <span className="block">Var. Día</span>
+                            <span className="block text-[9px] font-normal text-muted-foreground/70 tracking-wide">intradiario</span>
+                          </TableHead>
+                          <TableHead className="w-[130px] text-right text-xs font-bold">
+                            <span className="block">Impacto Día</span>
+                            <span className="block text-[9px] font-normal text-muted-foreground/70 tracking-wide">en posición</span>
+                          </TableHead>
                           <TableHead className="w-[120px] text-right text-xs font-bold">PPC</TableHead>
                           <TableHead className="w-[150px] text-right text-xs font-bold bg-muted/35">V. Actual</TableHead>
                           <TableHead className="w-[150px] text-right text-xs font-bold bg-muted/35">V. Inicial</TableHead>
@@ -319,7 +342,7 @@ export default function InstrumentsPage() {
                       </TableHeader>
                       <TableBody>
                         <TableRow className="h-9 border-border/50 bg-muted/65 hover:bg-muted/65">
-                          <TableCell colSpan={12} className="px-4 text-xs font-bold text-foreground/80">Pesos</TableCell>
+                          <TableCell colSpan={14} className="px-4 text-xs font-bold text-foreground/80">Pesos</TableCell>
                         </TableRow>
 
                         {section.rows.map((row) => {
@@ -343,6 +366,12 @@ export default function InstrumentsPage() {
                               </TableCell>
                               <TableCell className="text-right font-mono font-semibold">{formatMaybeNumber(row.quantity)}</TableCell>
                               <TableCell className="text-right font-mono text-slate-300">{formatMaybeMoney(row.price)}</TableCell>
+                              <TableCell className={`text-right font-mono font-bold ${row.dayChange === null ? "text-muted-foreground" : pnlClassName(row.dayChange)}`}>
+                                {formatDayChange(row.dayChange, row.dayChangePct)}
+                              </TableCell>
+                              <TableCell className={`text-right font-mono font-bold ${row.dayImpact === null ? "text-muted-foreground" : pnlClassName(row.dayImpact)}`}>
+                                {row.dayImpact === null ? "-" : formatARS(row.dayImpact)}
+                              </TableCell>
                               <TableCell className="text-right font-mono font-semibold">{formatMaybeMoney(row.avgCost)}</TableCell>
                               <TableCell className="text-right font-mono font-bold bg-muted/35">{formatARS(row.marketValue)}</TableCell>
                               <TableCell className="text-right font-mono font-semibold bg-muted/35">{formatARS(row.costBasis)}</TableCell>
@@ -382,7 +411,7 @@ export default function InstrumentsPage() {
                         })}
 
                         <TableRow className="h-10 border-border/60 bg-background/40 hover:bg-background/40">
-                          <TableCell colSpan={4} className="text-right text-xs font-bold text-muted-foreground">Totales</TableCell>
+                          <TableCell colSpan={6} className="text-right text-xs font-bold text-muted-foreground">Totales</TableCell>
                           <TableCell className="text-right font-mono text-sm font-bold bg-muted/35 text-slate-300">{formatARS(section.totalMarketValue)}</TableCell>
                           <TableCell className="text-right font-mono text-sm font-bold bg-muted/35 text-slate-300">{formatARS(section.totalCostBasis)}</TableCell>
                           <TableCell className={`text-right font-mono text-sm font-bold bg-muted/35 ${pnlClassName(section.totalPnl)}`}>
@@ -447,6 +476,11 @@ export default function InstrumentsPage() {
                             <FinancialMetric label="Subyacente" value={row.underlying} className="font-sans text-[12px]" />
                           ) : null}
                           <FinancialMetric label="Precio" value={formatMaybeMoney(row.price)} />
+                          <FinancialMetric
+                            label="Var. Día"
+                            value={formatDayChange(row.dayChange, row.dayChangePct)}
+                            tone={row.dayChange === null ? undefined : row.dayChange >= 0 ? "gain" : "loss"}
+                          />
                           <FinancialMetric label="V. Actual" value={formatARS(row.marketValue)} />
                           <FinancialMetric label="Rendimiento" value={formatARS(row.pnlAbsolute)} tone={row.pnlAbsolute < 0 ? "loss" : "gain"} />
                           <FinancialMetric label="Variación" value={formatPct(row.pnlPercentage)} tone={row.pnlPercentage < 0 ? "loss" : "gain"} />

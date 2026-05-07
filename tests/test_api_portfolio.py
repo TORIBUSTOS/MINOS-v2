@@ -159,3 +159,105 @@ def test_tickers_unified_ggal_presence_two(client, db_session):
     by_ticker = {item["ticker"]: item for item in body}
     assert by_ticker["GGAL"]["presence"] == 2
     assert by_ticker["AAPL"]["presence"] == 1
+
+
+# ── Variación intradiaria (day_change) ────────────────────────────────────────
+
+def test_portfolio_summary_trace_has_day_change_fields_when_previous_close_available(
+    client, db_session, monkeypatch
+):
+    """Cuando el quote incluye previous_close, el trace expone day_change y day_change_pct."""
+    from decimal import Decimal
+    from datetime import datetime, timezone
+    from src.services.market_data import PriceResult
+
+    _seed(db_session)
+
+    def quote_with_prev_close(ticker, exchange=None, instrument_type=None):
+        now = datetime(2026, 4, 30, tzinfo=timezone.utc)
+        return PriceResult(
+            input_ticker=ticker,
+            resolved_symbol=ticker,
+            source="test",
+            price=Decimal("4500.0"),
+            currency="ARS",
+            timestamp=now,
+            fetched_at=now,
+            instrument_type=instrument_type,
+            exchange=exchange,
+            quote_unit="PRICE",
+            status="OK",
+            is_stale=False,
+            error=None,
+            previous_close=Decimal("4200.0"),
+        )
+
+    monkeypatch.setattr(
+        "src.services.portfolio_engine.MarketDataService.get_quote",
+        quote_with_prev_close,
+    )
+
+    body = client.get("/api/v1/portfolio/summary").json()
+    by_ticker = {item["ticker"]: item for item in body["by_asset"]}
+    trace = by_ticker["GGAL"]["valuation_trace"]
+
+    assert trace["day_change"] == pytest.approx(300.0, abs=0.01)
+    assert trace["day_change_pct"] == pytest.approx(7.14, abs=0.01)
+    assert trace["day_impact"] is not None
+
+
+def test_portfolio_summary_trace_day_change_none_without_previous_close(client, db_session):
+    """Sin previous_close, los campos de variación del día son None."""
+    _seed(db_session)  # usa el fixture no_live_quotes que retorna previous_close=None
+
+    body = client.get("/api/v1/portfolio/summary").json()
+    by_ticker = {item["ticker"]: item for item in body["by_asset"]}
+    trace = by_ticker["GGAL"]["valuation_trace"]
+
+    # no_live_quotes retorna price=None → day_change no computable
+    assert trace["day_change"] is None
+    assert trace["day_change_pct"] is None
+    assert trace["day_impact"] is None
+
+
+def test_portfolio_summary_trace_day_change_none_when_price_ok_but_no_previous_close(
+    client, db_session, monkeypatch
+):
+    """price presente pero sin previous_close → day fields son None en _quote_trace."""
+    from decimal import Decimal
+    from datetime import datetime, timezone
+    from src.services.market_data import PriceResult
+
+    _seed(db_session)
+
+    def quote_no_prev_close(ticker, exchange=None, instrument_type=None):
+        now = datetime(2026, 4, 30, tzinfo=timezone.utc)
+        return PriceResult(
+            input_ticker=ticker,
+            resolved_symbol=ticker,
+            source="test",
+            price=Decimal("4500.0"),
+            currency="ARS",
+            timestamp=now,
+            fetched_at=now,
+            instrument_type=instrument_type,
+            exchange=exchange,
+            quote_unit="PRICE",
+            status="OK",
+            is_stale=False,
+            error=None,
+            previous_close=None,  # yfinance no retornó previous_close
+        )
+
+    monkeypatch.setattr(
+        "src.services.portfolio_engine.MarketDataService.get_quote",
+        quote_no_prev_close,
+    )
+
+    body = client.get("/api/v1/portfolio/summary").json()
+    by_ticker = {item["ticker"]: item for item in body["by_asset"]}
+    trace = by_ticker["GGAL"]["valuation_trace"]
+
+    assert trace["day_change"] is None
+    assert trace["day_change_pct"] is None
+    assert trace["day_impact"] is None
