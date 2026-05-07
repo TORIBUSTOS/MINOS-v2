@@ -4,7 +4,7 @@ Correr con: pytest tests/test_positions.py -v
 """
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
@@ -91,7 +91,7 @@ def test_create_position_load_type_is_always_manual(client, db_session):
 
 def test_create_position_creates_source_and_portfolio(client, db_session):
     client.post("/api/v1/positions", json=VALID_PAYLOAD)
-    source = db_session.query(Source).filter_by(name="Balanz").first()
+    source = db_session.query(Source).filter(func.lower(Source.name) == "balanz").first()
     assert source is not None
     portfolio = db_session.query(Portfolio).filter_by(name="Principal").first()
     assert portfolio is not None
@@ -102,7 +102,7 @@ def test_create_position_reuses_existing_source_and_portfolio(client, db_session
     """Dos cargas al mismo source/portfolio no duplican entidades."""
     client.post("/api/v1/positions", json=VALID_PAYLOAD)
     client.post("/api/v1/positions", json={**VALID_PAYLOAD, "ticker": "PAMP"})
-    assert db_session.query(Source).filter_by(name="Balanz").count() == 1
+    assert db_session.query(Source).filter(func.lower(Source.name) == "balanz").count() == 1
     assert db_session.query(Portfolio).filter_by(name="Principal").count() == 1
 
 
