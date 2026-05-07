@@ -592,12 +592,14 @@ def ingest_file(
             valuation=float(row_dict["valuacion"]),
             valuation_date=val_date,
             unit_price=float(row_dict["precio"]) if pd.notna(row_dict.get("precio")) else None,
-            avg_cost=(
-                float(row_dict["valor_inicial"]) / float(row_dict["cantidad"])
+            # Balanz "V. Inicial" column = per-unit PPC (not total invested)
+            # avg_cost = ppc per unit; cost_basis = ppc * quantity = total invested
+            avg_cost=float(row_dict["valor_inicial"]) if pd.notna(row_dict.get("valor_inicial")) else None,
+            cost_basis=(
+                float(row_dict["valor_inicial"]) * float(row_dict["cantidad"])
                 if pd.notna(row_dict.get("valor_inicial")) and float(row_dict.get("cantidad") or 0) > 0
                 else None
             ),
-            cost_basis=float(row_dict["valor_inicial"]) if pd.notna(row_dict.get("valor_inicial")) else None,
             pnl_absolute=float(row_dict["rendimiento"]) if pd.notna(row_dict.get("rendimiento")) else None,
             pnl_percentage=float(row_dict["pct_rendimiento"]) if pd.notna(row_dict.get("pct_rendimiento")) else None,
             dpt=float(row_dict["dpt"]) if pd.notna(row_dict.get("dpt")) else None,
