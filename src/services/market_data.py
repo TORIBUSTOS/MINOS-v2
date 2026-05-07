@@ -27,6 +27,7 @@ class PriceCache:
     currency: str = "USD"
     timestamp: datetime | None = None
     source: str = SOURCE_YFINANCE
+    previous_close: Decimal | None = None
 
 
 @dataclass
@@ -44,6 +45,7 @@ class PriceResult:
     status: str
     is_stale: bool
     error: str | None
+    previous_close: Decimal | None = None
 
 
 class MarketDataService:
@@ -110,6 +112,7 @@ class MarketDataService:
             status=status,
             is_stale=is_stale,
             error=error,
+            previous_close=cache.previous_close,
         )
 
     @classmethod
@@ -143,11 +146,17 @@ class MarketDataService:
                 or cls._read_fast_info(fast_info, "last_price_time"),
                 fetched_at,
             )
+            raw_prev = cls._read_fast_info(fast_info, "previous_close")
+            try:
+                previous_close = cls._to_decimal(raw_prev) if raw_prev is not None else None
+            except (ValueError, InvalidOperation):
+                previous_close = None
             cls._cache[resolved_symbol] = PriceCache(
                 price=price,
                 fetched_at=fetched_at,
                 currency=currency,
                 timestamp=timestamp,
+                previous_close=previous_close,
             )
             return PriceResult(
                 input_ticker=ticker,
@@ -163,6 +172,7 @@ class MarketDataService:
                 status=STATUS_OK,
                 is_stale=False,
                 error=None,
+                previous_close=previous_close,
             )
         except (Exception, InvalidOperation) as exc:
             if cached:

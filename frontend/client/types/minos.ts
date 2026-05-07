@@ -109,6 +109,10 @@ export interface ValuationTrace {
   resolved_symbol?: string
   source?: string
   price?: number | null
+  previous_close?: number | null
+  day_change?: number | null
+  day_change_pct?: number | null
+  day_impact?: number | null
   currency?: Currency | string
   timestamp?: string | null
   fetched_at?: string | null

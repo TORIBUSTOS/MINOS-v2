@@ -37,12 +37,17 @@ def _mock_yfinance(prices: dict[str, float]):
     return fake_ticker
 
 
-def _mock_yfinance_with_currency(prices: dict[str, float], currencies: dict[str, str]):
+def _mock_yfinance_with_currency(
+    prices: dict[str, float],
+    currencies: dict[str, str],
+    previous_closes: dict[str, float] | None = None,
+):
     def fake_ticker(symbol):
         mock = MagicMock()
         mock.fast_info.last_price = prices.get(symbol, 0.0)
         mock.fast_info.currency = currencies.get(symbol)
         mock.fast_info.last_trade_time = datetime(2026, 4, 30, 15, 30, tzinfo=timezone.utc)
+        mock.fast_info.previous_close = (previous_closes or {}).get(symbol)
         return mock
     return fake_ticker
 
@@ -259,3 +264,50 @@ def test_get_all_cached_marks_expired_entries():
     )
     cached = MarketDataService.get_all_cached()
     assert cached["GGAL.BA"]["expired"] is True
+
+
+# ── previous_close / variación intradiaria ────────────────────────────────────
+
+def test_get_quote_includes_previous_close_when_available():
+    with patch(
+        "src.services.market_data.yf.Ticker",
+        _mock_yfinance_with_currency(
+            {"GGAL.BA": 4500.0},
+            {"GGAL.BA": "ARS"},
+            previous_closes={"GGAL.BA": 4200.0},
+        ),
+    ):
+        quote = MarketDataService.get_quote("GGAL", "BYMA", "EQUITY")
+
+    assert quote.previous_close == Decimal("4200.0")
+    assert quote.price == Decimal("4500.0")
+
+
+def test_get_quote_previous_close_none_when_yfinance_returns_none():
+    with patch(
+        "src.services.market_data.yf.Ticker",
+        _mock_yfinance_with_currency(
+            {"BMA.BA": 10700.0},
+            {"BMA.BA": "ARS"},
+            previous_closes={},  # no previous_close for this ticker
+        ),
+    ):
+        quote = MarketDataService.get_quote("BMA", "BYMA", "EQUITY")
+
+    assert quote.previous_close is None
+    assert quote.price == Decimal("10700.0")
+
+
+def test_get_quote_previous_close_preserved_in_cache_hit():
+    from decimal import Decimal as D
+    MarketDataService._cache["GGAL.BA"] = PriceCache(
+        price=D("4500.0"),
+        fetched_at=datetime.now(timezone.utc),
+        currency="ARS",
+        previous_close=D("4200.0"),
+    )
+
+    quote = MarketDataService.get_quote("GGAL", "BYMA", "EQUITY")
+
+    assert quote.status == STATUS_CACHED
+    assert quote.previous_close == D("4200.0")
