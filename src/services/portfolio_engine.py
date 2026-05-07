@@ -119,11 +119,11 @@ def _fallback_trace(
         "is_stale": True,
         "error": error,
         "quantity": _to_float(quantity),
-        "avg_cost": _to_float(_decimal(pos.avg_cost) if pos.avg_cost is not None else avg_cost),
+        "avg_cost": _to_float(avg_cost),  # always cost_basis / quantity — broker ppc column is unreliable
         "market_value": _to_float(market_value),
         "cost_basis": _to_float(cost_basis),
-        "pnl_absolute": _to_float(_decimal(pos.pnl_absolute) if pos.pnl_absolute is not None else market_value - cost_basis),
-        "pnl_percentage": _to_float(_decimal(pos.pnl_percentage), TRACE_PCT_QUANT) if pos.pnl_percentage is not None else _to_float((market_value - cost_basis) / cost_basis * Decimal("100"), TRACE_PCT_QUANT) if cost_basis else 0.0,
+        "pnl_absolute": _to_float(market_value - cost_basis),
+        "pnl_percentage": _to_float((market_value - cost_basis) / cost_basis * Decimal("100"), TRACE_PCT_QUANT) if cost_basis else 0.0,
     }
 
 

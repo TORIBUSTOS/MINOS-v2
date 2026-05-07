@@ -220,6 +220,62 @@ def test_portfolio_summary_trace_day_change_none_without_previous_close(client, 
     assert trace["day_impact"] is None
 
 
+# ── PPC / avg_cost correctness ────────────────────────────────────────────────
+
+def test_ppc_computed_from_cost_basis_and_quantity_in_fallback(client, db_session):
+    """PPC = cost_basis / quantity aunque pos.avg_cost tenga un valor incorrecto almacenado."""
+    src = make_source(db_session, "Balanz")
+    port = make_portfolio(db_session, "Test", src)
+    asset = make_asset(db_session, "GGAL")
+    pos = make_position(db_session, port, asset, "GGAL", quantity=80.0, valuation=369354.0)
+    # Simulamos el valor incorrecto que guarda el CSV del broker (4616.93 / 80 = 57.71)
+    pos.avg_cost = 57.71
+    pos.cost_basis = 369354.0
+    db_session.commit()
+
+    body = client.get("/api/v1/portfolio/summary").json()
+    by_ticker = {item["ticker"]: item for item in body["by_asset"]}
+    trace = by_ticker["GGAL"]["valuation_trace"]
+
+    # PPC correcto = 369354 / 80 = 4616.925 ≈ 4616.93
+    assert trace["avg_cost"] == pytest.approx(4616.93, abs=0.01)
+
+
+def test_ppc_equals_cost_basis_over_quantity(client, db_session):
+    """Validar con casos reales: PAMP nominales=100, valor_inicial=205061 → PPC=2050.61."""
+    src = make_source(db_session, "Balanz")
+    port = make_portfolio(db_session, "Test", src)
+    asset = make_asset(db_session, "PAMP")
+    pos = make_position(db_session, port, asset, "PAMP", quantity=100.0, valuation=205061.0)
+    pos.avg_cost = 20.51  # valor incorrecto almacenado
+    pos.cost_basis = 205061.0
+    db_session.commit()
+
+    body = client.get("/api/v1/portfolio/summary").json()
+    by_ticker = {item["ticker"]: item for item in body["by_asset"]}
+    trace = by_ticker["PAMP"]["valuation_trace"]
+
+    assert trace["avg_cost"] == pytest.approx(2050.61, abs=0.01)
+
+
+def test_pnl_absolute_computed_from_market_value_minus_cost_basis(client, db_session):
+    """Rendimiento = valor_actual - valor_inicial (calculado, no del CSV del broker)."""
+    src = make_source(db_session, "Balanz")
+    port = make_portfolio(db_session, "Test", src)
+    asset = make_asset(db_session, "GGAL")
+    pos = make_position(db_session, port, asset, "GGAL", quantity=80.0, valuation=400000.0)
+    pos.cost_basis = 369354.0
+    pos.pnl_absolute = -99999.0  # valor incorrecto almacenado — debe ser ignorado
+    db_session.commit()
+
+    body = client.get("/api/v1/portfolio/summary").json()
+    by_ticker = {item["ticker"]: item for item in body["by_asset"]}
+    trace = by_ticker["GGAL"]["valuation_trace"]
+
+    # Rendimiento = 400000 - 369354 = 30646
+    assert trace["pnl_absolute"] == pytest.approx(30646.0, abs=1.0)
+
+
 def test_portfolio_summary_trace_day_change_none_when_price_ok_but_no_previous_close(
     client, db_session, monkeypatch
 ):

@@ -39,7 +39,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { usePortfolioSummary, useSignals } from "@/hooks/use-minos"
-import { assetColor, formatARS, formatPct, formatPctAlloc, formatQty, formatRelativeTime, getAssetCategory } from "@/lib/minos-formatters"
+import { assetColor, formatARS, formatPct, formatPctAlloc, formatPriceTime, formatQty, getAssetCategory } from "@/lib/minos-formatters"
 import type { AssetSummary, SignalValue, ValuationTrace } from "@/types/minos"
 
 type BrokerRow = {
@@ -115,9 +115,9 @@ function formatMaybeNumber(value: number | null): string {
   return value === null ? "-" : formatQty(value, 2)
 }
 
-function formatPriceTime(value: string | null): string {
+function formatTime(value: string | null): string {
   if (!value) return "-"
-  return formatRelativeTime(value)
+  return formatPriceTime(value)
 }
 
 /** Formato Balanz: "+380,00 (1,00%)" */
@@ -129,8 +129,26 @@ function formatDayChange(change: number | null, pct: number | null): string {
   return `${sign}${amount} (${formatPct(pct)})`
 }
 
+const STATUS_ABBR: Record<string, string> = {
+  OK:                           "OK",
+  CACHED:                       "OK",
+  STALE:                        "STALE",
+  FALLBACK_STORED_VALUATION:    "STORED",
+  NO_DYNAMIC_QUOTE:             "STATIC",
+  FETCH_ERROR:                  "ERROR",
+}
+
+function statusAbbr(status: string): string {
+  return STATUS_ABBR[status] ?? status.split("_")[0]
+}
+
 function statusClassName(status: string): string {
-  if (status === "OK") return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+  if (status === "OK" || status === "CACHED")
+    return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+  if (status === "STALE")
+    return "bg-amber-500/10 text-amber-400 border-amber-500/20"
+  if (status === "FALLBACK_STORED_VALUATION" || status === "NO_DYNAMIC_QUOTE")
+    return "bg-sky-500/10 text-sky-400 border-sky-500/20"
   return "bg-rose-500/10 text-rose-400 border-rose-500/25"
 }
 
@@ -308,7 +326,7 @@ export default function InstrumentsPage() {
                 return (
                   <section key={section.category} className="border-b border-border/50 last:border-b-0">
                     <div
-                      className="flex h-12 items-center gap-3 border-b border-border/60 bg-muted/65 px-4"
+                      className="flex h-9 items-center gap-3 border-b border-border/60 bg-muted/65 px-4"
                       style={{ borderLeft: `6px solid ${color}` }}
                     >
                       <ChevronUp className="size-4 text-muted-foreground" />
@@ -352,17 +370,16 @@ export default function InstrumentsPage() {
                           return (
                             <TableRow
                               key={row.ticker}
-                              className="h-11 border-border/50 text-sm hover:bg-muted/35"
+                              className="h-8 border-border/50 text-sm hover:bg-muted/35"
                             >
                               <TableCell className="px-4">
-                                <div className="flex flex-col leading-tight">
-                                  <span className="font-bold text-slate-300">{row.ticker}</span>
-                                  {row.underlying ? (
-                                    <span className="mt-1 max-w-[160px] truncate text-[10px] font-semibold text-muted-foreground">
-                                      Suby.: {row.underlying}
-                                    </span>
-                                  ) : null}
-                                </div>
+                                <span
+                                  className="font-bold text-slate-300 cursor-default"
+                                  title={row.underlying ? `Subyacente: ${row.underlying}` : undefined}
+                                >
+                                  {row.ticker}
+                                  {row.underlying ? <span className="ml-1 text-[9px] text-muted-foreground/50">◈</span> : null}
+                                </span>
                               </TableCell>
                               <TableCell className="text-right font-mono font-semibold">{formatMaybeNumber(row.quantity)}</TableCell>
                               <TableCell className="text-right font-mono text-slate-300">{formatMaybeMoney(row.price)}</TableCell>
@@ -382,18 +399,23 @@ export default function InstrumentsPage() {
                                 {formatPct(row.pnlPercentage)}
                               </TableCell>
                               <TableCell className="text-right font-mono font-semibold">{formatPctAlloc(row.portfolioWeight)}</TableCell>
-                              <TableCell className="text-right font-mono font-semibold text-muted-foreground">
-                                {row.priceTime ? formatPriceTime(row.priceTime) : "-"}
+                              <TableCell className="text-right font-mono text-xs font-semibold text-muted-foreground tabular-nums">
+                                {formatTime(row.priceTime)}
                               </TableCell>
                               <TableCell className="text-center">
-                                <Badge className={`border px-2 py-0.5 text-[9px] font-black tracking-widest ${statusClassName(row.valuationStatus)}`}>
-                                  {row.valuationStatus}
-                                </Badge>
-                                {signal !== "NEUTRAL" ? (
-                                  <Badge className={`ml-1 border px-1.5 py-0.5 text-[9px] font-bold ${signalStyle.className}`}>
-                                    {signalStyle.label}
+                                <div className="flex items-center justify-center gap-1">
+                                  <Badge
+                                    className={`border px-1.5 py-0 text-[9px] font-black tracking-widest ${statusClassName(row.valuationStatus)}`}
+                                    title={row.valuationStatus}
+                                  >
+                                    {statusAbbr(row.valuationStatus)}
                                   </Badge>
-                                ) : null}
+                                  {signal !== "NEUTRAL" ? (
+                                    <Badge className={`border px-1.5 py-0 text-[9px] font-bold ${signalStyle.className}`}>
+                                      {signalStyle.label}
+                                    </Badge>
+                                  ) : null}
+                                </div>
                               </TableCell>
                               <TableCell className="text-center">
                                 <Button
@@ -449,12 +471,15 @@ export default function InstrumentsPage() {
                           subtitle={row.underlying ? `Subyacente: ${row.underlying}` : row.portfolios.join(", ") || section.category}
                           accent={color}
                           meta={
-                            <div className="space-y-1">
-                              <Badge className={`border px-2 py-0.5 text-[9px] font-black tracking-widest ${statusClassName(row.valuationStatus)}`}>
-                                {row.valuationStatus}
+                            <div className="flex flex-col gap-1">
+                              <Badge
+                                className={`border px-1.5 py-0 text-[9px] font-black tracking-widest ${statusClassName(row.valuationStatus)}`}
+                                title={row.valuationStatus}
+                              >
+                                {statusAbbr(row.valuationStatus)}
                               </Badge>
                               {signal !== "NEUTRAL" ? (
-                                <Badge className={`block border px-2 py-0.5 text-[9px] font-bold ${signalStyle.className}`}>
+                                <Badge className={`border px-1.5 py-0 text-[9px] font-bold ${signalStyle.className}`}>
                                   {signalStyle.label}
                                 </Badge>
                               ) : null}

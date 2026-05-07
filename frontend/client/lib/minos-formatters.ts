@@ -132,11 +132,30 @@ export function formatDate(isoDate: string): string {
 export function formatRelativeTime(isoDatetime: string): string {
   const diff = Date.now() - new Date(isoDatetime).getTime()
   const mins = Math.floor(diff / 60_000)
-  if (mins < 1)  return "hace un momento"
-  if (mins < 60) return `hace ${mins} min`
+  if (mins < 1)  return "ahora"
+  if (mins < 60) return `${mins}m`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24)  return `hace ${hrs} h`
-  return `hace ${Math.floor(hrs / 24)} días`
+  if (hrs < 24)  return `${hrs}h`
+  return `${Math.floor(hrs / 24)}d`
+}
+
+/**
+ * Clock-style timestamp for price quotes.
+ * Recent (<60min): "14m"
+ * Same day: "HH:mm"
+ * Older: "DDd"
+ */
+export function formatPriceTime(isoDatetime: string): string {
+  const d = new Date(isoDatetime)
+  const diff = Date.now() - d.getTime()
+  const mins = Math.floor(diff / 60_000)
+  if (mins < 1)  return "ahora"
+  if (mins < 60) return `${mins}m`
+  const now = new Date()
+  if (d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+    return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })
+  }
+  return `${Math.floor(mins / 60 / 24)}d`
 }
 
 // ── Color helpers ─────────────────────────────────────────────────────────────
