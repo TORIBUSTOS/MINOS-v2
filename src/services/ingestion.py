@@ -461,6 +461,39 @@ def _canonical_source_name(name: str) -> str:
     return known.get(cleaned.lower(), cleaned)
 
 
+def _cost_fields(row: dict) -> dict:
+    """
+    Compute avg_cost and cost_basis from a normalized row.
+
+    Two ingestion paths have different semantics for valor_inicial:
+      - CSV (Balanz export): valor_inicial = per-unit PPC  → cost_basis = valor_inicial × cantidad
+      - Screenshot/OCR:      valor_inicial = total invested → cost_basis = valor_inicial directly
+
+    ppc is always per-unit in both paths, so it is the canonical source for avg_cost.
+    We detect the path by checking whether valor_inicial ≈ ppc (per-unit) or not (total).
+    """
+    import math
+    ppc_raw = row.get("ppc")
+    v_inicial_raw = row.get("valor_inicial")
+    cantidad = float(row.get("cantidad") or 0)
+
+    ppc_unit = float(ppc_raw) if ppc_raw is not None and not (isinstance(ppc_raw, float) and math.isnan(ppc_raw)) else None
+    v_inicial = float(v_inicial_raw) if v_inicial_raw is not None and not (isinstance(v_inicial_raw, float) and math.isnan(v_inicial_raw)) else None
+
+    avg_cost = ppc_unit  # always per-unit
+
+    if ppc_unit is not None and v_inicial is not None and abs(v_inicial - ppc_unit) > 1.0:
+        # valor_inicial is a total (screenshot path: V.Inicial = PPC × nominales)
+        cost_basis = v_inicial
+    elif (ppc_unit is not None or v_inicial is not None) and cantidad > 0:
+        # valor_inicial equals ppc (CSV path: stored per-unit) — multiply to get total
+        cost_basis = (ppc_unit or v_inicial) * cantidad
+    else:
+        cost_basis = v_inicial
+
+    return {"avg_cost": avg_cost, "cost_basis": cost_basis}
+
+
 def _validate_row(row: dict) -> tuple[bool, str]:
     """Retorna (is_valid, reason). Nunca lanza excepción."""
     ticker = str(row.get("ticker", "")).strip()
@@ -592,14 +625,7 @@ def ingest_file(
             valuation=float(row_dict["valuacion"]),
             valuation_date=val_date,
             unit_price=float(row_dict["precio"]) if pd.notna(row_dict.get("precio")) else None,
-            # Balanz "V. Inicial" column = per-unit PPC (not total invested)
-            # avg_cost = ppc per unit; cost_basis = ppc * quantity = total invested
-            avg_cost=float(row_dict["valor_inicial"]) if pd.notna(row_dict.get("valor_inicial")) else None,
-            cost_basis=(
-                float(row_dict["valor_inicial"]) * float(row_dict["cantidad"])
-                if pd.notna(row_dict.get("valor_inicial")) and float(row_dict.get("cantidad") or 0) > 0
-                else None
-            ),
+            **_cost_fields(row_dict),
             pnl_absolute=float(row_dict["rendimiento"]) if pd.notna(row_dict.get("rendimiento")) else None,
             pnl_percentage=float(row_dict["pct_rendimiento"]) if pd.notna(row_dict.get("pct_rendimiento")) else None,
             dpt=float(row_dict["dpt"]) if pd.notna(row_dict.get("dpt")) else None,
