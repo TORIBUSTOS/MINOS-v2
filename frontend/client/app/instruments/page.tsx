@@ -54,6 +54,9 @@ type BrokerRow = {
   dayChange: number | null
   dayChangePct: number | null
   dayImpact: number | null
+  dataFreshness: string
+  marketState: string
+  lastMarketTime: string | null
   avgCost: number | null
   marketValue: number
   costBasis: number
@@ -153,9 +156,12 @@ function brokerRowFromAsset(asset: AssetSummary): BrokerRow {
     quantity: numberOrNull(trace.quantity),
     price: numberOrNull(trace.price),
     priceTime: trace.timestamp ?? trace.fetched_at ?? null,
-    dayChange: numberOrNull(trace.day_change),
-    dayChangePct: numberOrNull(trace.day_change_pct),
-    dayImpact: numberOrNull(trace.day_impact),
+    dayChange: numberOrNull(asset.day_change ?? trace.day_change),
+    dayChangePct: numberOrNull(asset.day_change_pct ?? trace.day_change_pct),
+    dayImpact: numberOrNull(asset.day_impact ?? trace.day_impact),
+    dataFreshness: asset.data_freshness ?? trace.data_freshness ?? "UNAVAILABLE",
+    marketState: asset.market_state ?? trace.market_state ?? "UNAVAILABLE",
+    lastMarketTime: asset.last_market_time ?? trace.last_market_time ?? null,
     avgCost: numberOrNull(trace.avg_cost),
     marketValue: asset.market_value ?? trace.market_value ?? asset.valuation,
     costBasis: asset.cost_basis ?? trace.cost_basis ?? asset.valuation,
@@ -211,6 +217,16 @@ function statusClassName(status: string): string {
   if (status === "FALLBACK_STORED_VALUATION" || status === "NO_DYNAMIC_QUOTE")
     return "bg-sky-500/10 text-sky-400 border-sky-500/20"
   return "bg-rose-500/10 text-rose-400 border-rose-500/25"
+}
+
+function freshnessClassName(freshness: string): string {
+  if (freshness === "LIVE")
+    return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+  if (freshness === "CACHE")
+    return "bg-sky-500/10 text-sky-400 border-sky-500/20"
+  if (freshness === "STALE")
+    return "bg-amber-500/10 text-amber-400 border-amber-500/20"
+  return "bg-muted/10 text-muted-foreground border-border/30"
 }
 
 function pnlClassName(value: number): string {
@@ -309,9 +325,9 @@ export default function InstrumentsPage() {
   }, [measureHeight, sections.length])
 
   // Keep colspans aligned with conditional columns.
-  const totalCols = 14 - (d.showImpact ? 0 : 1) - (d.showUpdated ? 0 : 1)
+  const totalCols = 15 - (d.showImpact ? 0 : 1) - (d.showUpdated ? 0 : 1)
   const totalsLeadSpan = d.showImpact ? 6 : 5
-  const totalsTailSpan = d.showUpdated ? 5 : 4
+  const totalsTailSpan = d.showUpdated ? 6 : 5
 
   const exportCsv = () => {
     const headers = [
@@ -326,6 +342,8 @@ export default function InstrumentsPage() {
       "pnl_percentage",
       "portfolio_weight",
       "valuation_status",
+      "data_freshness",
+      "market_state",
     ]
     const data = filteredRows.map((row) => [
       row.ticker,
@@ -339,6 +357,8 @@ export default function InstrumentsPage() {
       row.pnlPercentage,
       row.portfolioWeight,
       row.valuationStatus,
+      row.dataFreshness,
+      row.marketState,
     ])
     const escapeCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`
     const csv = [headers, ...data].map((row) => row.map(escapeCell).join(",")).join("\n")
@@ -484,6 +504,7 @@ export default function InstrumentsPage() {
                                 <TableHead className="w-[112px] text-right text-xs font-bold">Actualizado</TableHead>
                               )}
                               <TableHead className="w-[120px] text-center text-xs font-bold">Estado</TableHead>
+                              <TableHead className="w-[112px] text-center text-xs font-bold">Mercado</TableHead>
                               <TableHead className="w-[64px] text-center text-xs font-bold" />
                             </TableRow>
                           </TableHeader>
@@ -552,6 +573,14 @@ export default function InstrumentsPage() {
                                     </div>
                                   </TableCell>
                                   <TableCell className="text-center">
+                                    <Badge
+                                      className={cn("border px-1.5 py-0 text-[9px] font-black tracking-widest", freshnessClassName(row.dataFreshness))}
+                                      title={`${row.marketState}${row.lastMarketTime ? ` · ${formatTime(row.lastMarketTime)}` : ""}`}
+                                    >
+                                      {row.dataFreshness}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-center">
                                     <Button
                                       variant="ghost"
                                       size="icon"
@@ -617,6 +646,12 @@ export default function InstrumentsPage() {
                                   {signalStyle.label}
                                 </Badge>
                               ) : null}
+                              <Badge
+                                className={cn("border px-1.5 py-0 text-[9px] font-black tracking-widest", freshnessClassName(row.dataFreshness))}
+                                title={`${row.marketState}${row.lastMarketTime ? ` · ${formatTime(row.lastMarketTime)}` : ""}`}
+                              >
+                                {row.dataFreshness}
+                              </Badge>
                             </div>
                           }
                           action={

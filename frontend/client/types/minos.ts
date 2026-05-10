@@ -98,6 +98,12 @@ export interface AssetSummary {
   pnl_percentage?: number
   portfolio_weight?: number
   valuation_status?: string
+  day_change?: number | null
+  day_change_pct?: number | null
+  day_impact?: number | null
+  data_freshness?: string
+  market_state?: string
+  last_market_time?: string | null
   valuation_trace?: ValuationTrace
   valuation_traces?: ValuationTrace[]
   pct: number
@@ -113,6 +119,10 @@ export interface ValuationTrace {
   day_change?: number | null
   day_change_pct?: number | null
   day_impact?: number | null
+  daily_impact_status?: string
+  data_freshness?: string
+  market_state?: string
+  last_market_time?: string | null
   currency?: Currency | string
   timestamp?: string | null
   fetched_at?: string | null
@@ -148,6 +158,18 @@ export interface ConsolidatedPortfolio {
   by_asset: AssetSummary[]
   by_source: SourceSummary[]
   by_currency: CurrencySummary[]
+  live_market?: LiveMarketSummary
+}
+
+export interface LiveMarketSummary {
+  daily_pnl_total: number
+  daily_pnl_pct: number
+  positive_count: number
+  negative_count: number
+  unchanged_count: number
+  unavailable_count: number
+  freshness_summary: Record<string, number>
+  last_market_time: string | null
 }
 
 // ── Unified Ticker Layer (BN-006) ─────────────────────────────────────────────
