@@ -10,6 +10,7 @@ import {
   Search,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { cn } from "@/lib/utils"
 
 import {
   EmptyState,
@@ -62,6 +63,66 @@ type BrokerRow = {
   valuationStatus: string
   pricingSource: string
   portfolios: string[]
+}
+
+type Density = "comfortable" | "compact" | "dense"
+
+const DENSITY_CFG: Record<Density, {
+  rowH: string
+  groupH: string
+  headerH: string
+  totalsH: string
+  px: string
+  text: string
+  minW: string
+  showImpact: boolean
+  showUpdated: boolean
+}> = {
+  comfortable: {
+    rowH: "h-8",
+    groupH: "h-9",
+    headerH: "h-10",
+    totalsH: "h-10",
+    px: "px-4",
+    text: "text-sm",
+    minW: "min-w-[1700px]",
+    showImpact: true,
+    showUpdated: true,
+  },
+  compact: {
+    rowH: "h-[26px]",
+    groupH: "h-7",
+    headerH: "h-8",
+    totalsH: "h-8",
+    px: "px-3",
+    text: "text-xs",
+    minW: "min-w-[1550px]",
+    showImpact: true,
+    showUpdated: true,
+  },
+  dense: {
+    rowH: "h-6",
+    groupH: "h-6",
+    headerH: "h-7",
+    totalsH: "h-7",
+    px: "px-2",
+    text: "text-xs",
+    minW: "min-w-[1350px]",
+    showImpact: false,
+    showUpdated: false,
+  },
+}
+
+const DENSITY_LABEL: Record<Density, string> = {
+  comfortable: "Amplio",
+  compact: "Compacto",
+  dense: "Denso",
+}
+
+function getAutoDensity(height: number): Density {
+  if (height > 900) return "comfortable"
+  if (height >= 750) return "compact"
+  return "dense"
 }
 
 const CATEGORY_ORDER = ["Acciones", "Cedears", "Bonos", "Corporativos", "Fondos", "Otros"]
@@ -124,7 +185,7 @@ function formatTime(value: string | null): string {
 function formatDayChange(change: number | null, pct: number | null): string {
   if (change === null || pct === null) return "-"
   const sign = change >= 0 ? "+" : ""
-  // strip currency symbol + any Unicode whitespace (Intl puede usar   o  )
+  // Strip currency symbol and spacing added by Intl.
   const amount = formatARS(change).replace(/^\$\s*/u, "")
   return `${sign}${amount} (${formatPct(pct)})`
 }
@@ -184,6 +245,37 @@ export default function InstrumentsPage() {
   const [search, setSearch] = React.useState("")
   const [statusFilter, setStatusFilter] = React.useState("all")
 
+  // Auto-detect row density from viewport height, with manual override.
+  const [density, setDensity] = React.useState<Density>("comfortable")
+  const [densityManual, setDensityManual] = React.useState(false)
+
+  React.useEffect(() => {
+    if (densityManual) return
+    const compute = () => setDensity(getAutoDensity(window.innerHeight))
+    compute()
+    window.addEventListener("resize", compute)
+    return () => window.removeEventListener("resize", compute)
+  }, [densityManual])
+
+  const d = DENSITY_CFG[density]
+
+  // Measure from the real DOM position so the table adapts to layout changes.
+  const tableWrapperRef = React.useRef<HTMLDivElement>(null)
+  const [tableHeight, setTableHeight] = React.useState(400)
+
+  const measureHeight = React.useCallback(() => {
+    const el = tableWrapperRef.current
+    if (!el) return
+    const top = el.getBoundingClientRect().top
+    setTableHeight(Math.max(240, window.innerHeight - top - 24))
+  }, [])
+
+  React.useEffect(() => {
+    measureHeight()
+    window.addEventListener("resize", measureHeight)
+    return () => window.removeEventListener("resize", measureHeight)
+  }, [measureHeight])
+
   React.useEffect(() => {
     const query = new URLSearchParams(window.location.search).get("q")
     if (query) setSearch(query)
@@ -210,6 +302,16 @@ export default function InstrumentsPage() {
     return matchesSearch && matchesStatus
   })
   const sections = groupedRows(filteredRows)
+
+  // Re-measure after data changes alter the table body.
+  React.useEffect(() => {
+    measureHeight()
+  }, [measureHeight, sections.length])
+
+  // Keep colspans aligned with conditional columns.
+  const totalCols = 14 - (d.showImpact ? 0 : 1) - (d.showUpdated ? 0 : 1)
+  const totalsLeadSpan = d.showImpact ? 6 : 5
+  const totalsTailSpan = d.showUpdated ? 5 : 4
 
   const exportCsv = () => {
     const headers = [
@@ -297,7 +399,7 @@ export default function InstrumentsPage() {
               className="h-8 rounded-md border-border/60 bg-background/50 pl-9 text-sm transition-all focus:ring-primary/20"
             />
           </div>
-          <div className="flex w-full items-center gap-2 md:w-auto">
+          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
             <Filter className="size-3.5 text-muted-foreground" />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="h-8 flex-1 rounded-md border-border/60 bg-background/50 text-xs font-bold md:w-48 md:flex-none">
@@ -310,6 +412,25 @@ export default function InstrumentsPage() {
                 ))}
               </SelectContent>
             </Select>
+
+            <div className="ml-auto flex h-8 items-center rounded-md border border-border/60 bg-background/50 p-0.5 md:ml-2" role="group" aria-label="Densidad de filas">
+              {(["comfortable", "compact", "dense"] as Density[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => { setDensity(mode); setDensityManual(true) }}
+                  className={cn(
+                    "h-7 rounded px-2.5 text-[10px] font-bold transition-all",
+                    density === mode
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title={DENSITY_LABEL[mode]}
+                >
+                  {DENSITY_LABEL[mode]}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -318,136 +439,149 @@ export default function InstrumentsPage() {
         ) : (
           <ResponsiveFinancialTable
             table={
-          <div className="overflow-x-auto border border-border/50 bg-card/25">
-            <div className="min-w-[1700px]">
-              {sections.map((section) => {
-                const color = assetColor(section.category)
+              <div
+                ref={tableWrapperRef}
+                className="overflow-auto border border-border/50 bg-card/25"
+                style={{ height: tableHeight }}
+              >
+                <div className={d.minW}>
+                  {sections.map((section) => {
+                    const color = assetColor(section.category)
 
-                return (
-                  <section key={section.category} className="border-b border-border/50 last:border-b-0">
-                    <div
-                      className="flex h-9 items-center gap-3 border-b border-border/60 bg-muted/65 px-4"
-                      style={{ borderLeft: `6px solid ${color}` }}
-                    >
-                      <ChevronUp className="size-4 text-muted-foreground" />
-                      <h2 className="text-sm font-bold text-foreground">{section.category} ({section.rows.length})</h2>
-                    </div>
+                    return (
+                      <section key={section.category} className="border-b border-border/50 last:border-b-0">
+                        <div
+                          className={cn("flex items-center gap-3 border-b border-border/60 bg-muted/65 px-4", d.groupH)}
+                          style={{ borderLeft: `6px solid ${color}` }}
+                        >
+                          <ChevronUp className="size-4 text-muted-foreground" />
+                          <h2 className="text-sm font-bold text-foreground">{section.category} ({section.rows.length})</h2>
+                        </div>
 
-                    <Table>
-                      <TableHeader className="bg-background/50">
-                        <TableRow className="h-10 border-border/60 hover:bg-transparent">
-                          <TableHead className="w-[120px] px-4 text-xs font-bold">Ticker</TableHead>
-                          <TableHead className="w-[120px] text-right text-xs font-bold">Nominales</TableHead>
-                          <TableHead className="w-[140px] text-right text-xs font-bold">Precio</TableHead>
-                          <TableHead className="w-[180px] text-right text-xs font-bold">
-                            <span className="block">Var. Día</span>
-                            <span className="block text-[9px] font-normal text-muted-foreground/70 tracking-wide">intradiario</span>
-                          </TableHead>
-                          <TableHead className="w-[130px] text-right text-xs font-bold">
-                            <span className="block">Impacto Día</span>
-                            <span className="block text-[9px] font-normal text-muted-foreground/70 tracking-wide">en posición</span>
-                          </TableHead>
-                          <TableHead className="w-[120px] text-right text-xs font-bold">PPC</TableHead>
-                          <TableHead className="w-[150px] text-right text-xs font-bold bg-muted/35">V. Actual</TableHead>
-                          <TableHead className="w-[150px] text-right text-xs font-bold bg-muted/35">V. Inicial</TableHead>
-                          <TableHead className="w-[150px] text-right text-xs font-bold bg-muted/35">Rendimiento</TableHead>
-                          <TableHead className="w-[130px] text-right text-xs font-bold">Variación (%)</TableHead>
-                          <TableHead className="w-[110px] text-right text-xs font-bold">% Cartera</TableHead>
-                          <TableHead className="w-[112px] text-right text-xs font-bold">Actualizado</TableHead>
-                          <TableHead className="w-[120px] text-center text-xs font-bold">Estado</TableHead>
-                          <TableHead className="w-[64px] text-center text-xs font-bold" />
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <TableRow className="h-9 border-border/50 bg-muted/65 hover:bg-muted/65">
-                          <TableCell colSpan={14} className="px-4 text-xs font-bold text-foreground/80">Pesos</TableCell>
-                        </TableRow>
-
-                        {section.rows.map((row) => {
-                          const signal = signalMap[row.ticker] ?? "NEUTRAL"
-                          const signalStyle = SIGNAL_STYLE[signal]
-
-                          return (
-                            <TableRow
-                              key={row.ticker}
-                              className="h-8 border-border/50 text-sm hover:bg-muted/35"
-                            >
-                              <TableCell className="px-4">
-                                <span
-                                  className="font-bold text-slate-300 cursor-default"
-                                  title={row.underlying ? `Subyacente: ${row.underlying}` : undefined}
-                                >
-                                  {row.ticker}
-                                  {row.underlying ? <span className="ml-1 text-[9px] text-muted-foreground/50">◈</span> : null}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-right font-mono font-semibold">{formatMaybeNumber(row.quantity)}</TableCell>
-                              <TableCell className="text-right font-mono text-slate-300">{formatMaybeMoney(row.price)}</TableCell>
-                              <TableCell className={`text-right font-mono font-bold ${row.dayChange === null ? "text-muted-foreground" : pnlClassName(row.dayChange)}`}>
-                                {formatDayChange(row.dayChange, row.dayChangePct)}
-                              </TableCell>
-                              <TableCell className={`text-right font-mono font-bold ${row.dayImpact === null ? "text-muted-foreground" : pnlClassName(row.dayImpact)}`}>
-                                {row.dayImpact === null ? "-" : formatARS(row.dayImpact)}
-                              </TableCell>
-                              <TableCell className="text-right font-mono font-semibold">{formatMaybeMoney(row.avgCost)}</TableCell>
-                              <TableCell className="text-right font-mono font-bold bg-muted/35">{formatARS(row.marketValue)}</TableCell>
-                              <TableCell className="text-right font-mono font-semibold bg-muted/35">{formatARS(row.costBasis)}</TableCell>
-                              <TableCell className={`text-right font-mono font-bold bg-muted/35 ${pnlClassName(row.pnlAbsolute)}`}>
-                                {formatARS(row.pnlAbsolute)}
-                              </TableCell>
-                              <TableCell className={`text-right font-mono font-bold ${pnlClassName(row.pnlPercentage)}`}>
-                                {formatPct(row.pnlPercentage)}
-                              </TableCell>
-                              <TableCell className="text-right font-mono font-semibold">{formatPctAlloc(row.portfolioWeight)}</TableCell>
-                              <TableCell className="text-right font-mono text-xs font-semibold text-muted-foreground tabular-nums">
-                                {formatTime(row.priceTime)}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <div className="flex items-center justify-center gap-1">
-                                  <Badge
-                                    className={`border px-1.5 py-0 text-[9px] font-black tracking-widest ${statusClassName(row.valuationStatus)}`}
-                                    title={row.valuationStatus}
-                                  >
-                                    {statusAbbr(row.valuationStatus)}
-                                  </Badge>
-                                  {signal !== "NEUTRAL" ? (
-                                    <Badge className={`border px-1.5 py-0 text-[9px] font-bold ${signalStyle.className}`}>
-                                      {signalStyle.label}
-                                    </Badge>
-                                  ) : null}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="size-7 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                                  onClick={() => router.push(`/tickers?q=${encodeURIComponent(row.ticker)}`)}
-                                  title={`Ver ${row.ticker} en Tickers Unificados`}
-                                >
-                                  <MoreVertical className="size-4" />
-                                </Button>
-                              </TableCell>
+                        <Table>
+                          <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm shadow-[0_1px_0_0_hsl(var(--border)/0.5)]">
+                            <TableRow className={cn("border-border/60 hover:bg-transparent", d.headerH)}>
+                              <TableHead className={cn("w-[120px] text-xs font-bold", d.px)}>Ticker</TableHead>
+                              <TableHead className="w-[120px] text-right text-xs font-bold">Nominales</TableHead>
+                              <TableHead className="w-[140px] text-right text-xs font-bold">Precio</TableHead>
+                              <TableHead className="w-[180px] text-right text-xs font-bold">
+                                <span className="block">Var. Día</span>
+                                <span className="block text-[9px] font-normal text-muted-foreground/70 tracking-wide">intradiario</span>
+                              </TableHead>
+                              {d.showImpact && (
+                                <TableHead className="w-[130px] text-right text-xs font-bold">
+                                  <span className="block">Impacto Día</span>
+                                  <span className="block text-[9px] font-normal text-muted-foreground/70 tracking-wide">en posición</span>
+                                </TableHead>
+                              )}
+                              <TableHead className="w-[120px] text-right text-xs font-bold">PPC</TableHead>
+                              <TableHead className="w-[150px] text-right text-xs font-bold bg-muted/35">V. Actual</TableHead>
+                              <TableHead className="w-[150px] text-right text-xs font-bold bg-muted/35">V. Inicial</TableHead>
+                              <TableHead className="w-[150px] text-right text-xs font-bold bg-muted/35">Rendimiento</TableHead>
+                              <TableHead className="w-[130px] text-right text-xs font-bold">Variación (%)</TableHead>
+                              <TableHead className="w-[110px] text-right text-xs font-bold">% Cartera</TableHead>
+                              {d.showUpdated && (
+                                <TableHead className="w-[112px] text-right text-xs font-bold">Actualizado</TableHead>
+                              )}
+                              <TableHead className="w-[120px] text-center text-xs font-bold">Estado</TableHead>
+                              <TableHead className="w-[64px] text-center text-xs font-bold" />
                             </TableRow>
-                          )
-                        })}
+                          </TableHeader>
 
-                        <TableRow className="h-10 border-border/60 bg-background/40 hover:bg-background/40">
-                          <TableCell colSpan={6} className="text-right text-xs font-bold text-muted-foreground">Totales</TableCell>
-                          <TableCell className="text-right font-mono text-sm font-bold bg-muted/35 text-slate-300">{formatARS(section.totalMarketValue)}</TableCell>
-                          <TableCell className="text-right font-mono text-sm font-bold bg-muted/35 text-slate-300">{formatARS(section.totalCostBasis)}</TableCell>
-                          <TableCell className={`text-right font-mono text-sm font-bold bg-muted/35 ${pnlClassName(section.totalPnl)}`}>
-                            {formatARS(section.totalPnl)}
-                          </TableCell>
-                          <TableCell colSpan={5} />
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </section>
-                )
-              })}
-            </div>
-          </div>
+                          <TableBody>
+                            <TableRow className={cn("border-border/50 bg-muted/65 hover:bg-muted/65", d.rowH)}>
+                              <TableCell colSpan={totalCols} className={cn("text-xs font-bold text-foreground/80", d.px)}>Pesos</TableCell>
+                            </TableRow>
+
+                            {section.rows.map((row) => {
+                              const signal = signalMap[row.ticker] ?? "NEUTRAL"
+                              const signalStyle = SIGNAL_STYLE[signal]
+
+                              return (
+                                <TableRow
+                                  key={row.ticker}
+                                  className={cn("border-border/50 hover:bg-muted/35", d.rowH, d.text)}
+                                >
+                                  <TableCell className={d.px}>
+                                    <span
+                                      className="font-bold text-slate-300 cursor-default"
+                                      title={row.underlying ? `Subyacente: ${row.underlying}` : undefined}
+                                    >
+                                      {row.ticker}
+                                      {row.underlying ? <span className="ml-1 text-[9px] text-muted-foreground/50">◈</span> : null}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono font-semibold">{formatMaybeNumber(row.quantity)}</TableCell>
+                                  <TableCell className="text-right font-mono text-slate-300">{formatMaybeMoney(row.price)}</TableCell>
+                                  <TableCell className={cn("text-right font-mono font-bold", row.dayChange === null ? "text-muted-foreground" : pnlClassName(row.dayChange))}>
+                                    {formatDayChange(row.dayChange, row.dayChangePct)}
+                                  </TableCell>
+                                  {d.showImpact && (
+                                    <TableCell className={cn("text-right font-mono font-bold", row.dayImpact === null ? "text-muted-foreground" : pnlClassName(row.dayImpact))}>
+                                      {row.dayImpact === null ? "-" : formatARS(row.dayImpact)}
+                                    </TableCell>
+                                  )}
+                                  <TableCell className="text-right font-mono font-semibold">{formatMaybeMoney(row.avgCost)}</TableCell>
+                                  <TableCell className="text-right font-mono font-bold bg-muted/35">{formatARS(row.marketValue)}</TableCell>
+                                  <TableCell className="text-right font-mono font-semibold bg-muted/35">{formatARS(row.costBasis)}</TableCell>
+                                  <TableCell className={cn("text-right font-mono font-bold bg-muted/35", pnlClassName(row.pnlAbsolute))}>
+                                    {formatARS(row.pnlAbsolute)}
+                                  </TableCell>
+                                  <TableCell className={cn("text-right font-mono font-bold", pnlClassName(row.pnlPercentage))}>
+                                    {formatPct(row.pnlPercentage)}
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono font-semibold">{formatPctAlloc(row.portfolioWeight)}</TableCell>
+                                  {d.showUpdated && (
+                                    <TableCell className="text-right font-mono text-xs font-semibold text-muted-foreground tabular-nums">
+                                      {formatTime(row.priceTime)}
+                                    </TableCell>
+                                  )}
+                                  <TableCell className="text-center">
+                                    <div className="flex items-center justify-center gap-1">
+                                      <Badge
+                                        className={cn("border px-1.5 py-0 text-[9px] font-black tracking-widest", statusClassName(row.valuationStatus))}
+                                        title={row.valuationStatus}
+                                      >
+                                        {statusAbbr(row.valuationStatus)}
+                                      </Badge>
+                                      {signal !== "NEUTRAL" ? (
+                                        <Badge className={cn("border px-1.5 py-0 text-[9px] font-bold", signalStyle.className)}>
+                                          {signalStyle.label}
+                                        </Badge>
+                                      ) : null}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="size-7 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                      onClick={() => router.push(`/tickers?q=${encodeURIComponent(row.ticker)}`)}
+                                      title={`Ver ${row.ticker} en Tickers Unificados`}
+                                    >
+                                      <MoreVertical className="size-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            })}
+
+                            <TableRow className={cn("border-border/60 bg-background/40 hover:bg-background/40", d.totalsH)}>
+                              <TableCell colSpan={totalsLeadSpan} className={cn("text-right text-xs font-bold text-muted-foreground", d.px)}>Totales</TableCell>
+                              <TableCell className="text-right font-mono text-sm font-bold bg-muted/35 text-slate-300">{formatARS(section.totalMarketValue)}</TableCell>
+                              <TableCell className="text-right font-mono text-sm font-bold bg-muted/35 text-slate-300">{formatARS(section.totalCostBasis)}</TableCell>
+                              <TableCell className={cn("text-right font-mono text-sm font-bold bg-muted/35", pnlClassName(section.totalPnl))}>
+                                {formatARS(section.totalPnl)}
+                              </TableCell>
+                              <TableCell colSpan={totalsTailSpan} />
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </section>
+                    )
+                  })}
+                </div>
+              </div>
             }
             cards={
               sections.map((section) => {
@@ -473,13 +607,13 @@ export default function InstrumentsPage() {
                           meta={
                             <div className="flex flex-col gap-1">
                               <Badge
-                                className={`border px-1.5 py-0 text-[9px] font-black tracking-widest ${statusClassName(row.valuationStatus)}`}
+                                className={cn("border px-1.5 py-0 text-[9px] font-black tracking-widest", statusClassName(row.valuationStatus))}
                                 title={row.valuationStatus}
                               >
                                 {statusAbbr(row.valuationStatus)}
                               </Badge>
                               {signal !== "NEUTRAL" ? (
-                                <Badge className={`border px-1.5 py-0 text-[9px] font-bold ${signalStyle.className}`}>
+                                <Badge className={cn("border px-1.5 py-0 text-[9px] font-bold", signalStyle.className)}>
                                   {signalStyle.label}
                                 </Badge>
                               ) : null}
