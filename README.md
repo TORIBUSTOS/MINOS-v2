@@ -50,6 +50,7 @@ La especificación completa vive en el repo Trinity:
 | SPECS.md | Especificaciones funcionales del MVP |
 | ARCHITECTURE.md | Arquitectura conceptual y técnica |
 | MINOS_BN_BREAKDOWN.md | Bloques de ejecución |
+| SPRINT_3_LIVE_MARKET_LAYER.md | Scope ejecutable Sprint 3 |
 
 ---
 
@@ -73,7 +74,7 @@ Frontend local: `http://localhost:4400`
 
 ### Fase
 
-MINOS PRIME v2 — Sprint 2 integrado localmente
+MINOS PRIME v2 — Sprint 3 formalizado / listo para ejecucion
 
 ### Stack
 
@@ -133,6 +134,8 @@ MINOS PRIME v2 — Sprint 2 integrado localmente
 
 ### LIVE MARKET LAYER
 
+Scope formalizado en `minos-prime/SPRINT_3_LIVE_MARKET_LAYER.md`.
+
 Próxima capa institucional:
 
 - Variación intradiaria (%)
@@ -146,6 +149,12 @@ Próxima capa institucional:
 Objetivo:
 
 Transformar MINOS PRIME desde un dashboard financiero hacia una terminal operativa viva.
+
+Primer BN recomendado:
+
+```text
+BN-S3-01 — Quote intradiario enriquecido
+```
 
 ---
 
