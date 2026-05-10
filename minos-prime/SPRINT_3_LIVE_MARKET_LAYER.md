@@ -1,8 +1,9 @@
 # MINOS Sprint 3 — Live Market Layer
 
 **Sprint:** Live Market Layer  
-**Estado:** PROPUESTO / listo para ejecucion  
+**Estado:** CERRADO  
 **Fecha de formalizacion:** 2026-05-10  
+**Fecha de cierre:** 2026-05-10  
 **Objetivo rector:** convertir la valuacion broker-grade de Sprint 2 en una capa operativa viva, separando movimiento de mercado, frescura de datos e inteligencia accionable.
 
 ---
@@ -242,12 +243,21 @@ cd frontend/client && npm run dev
 
 ## 4. Primer BN recomendado
 
-Empezar por **BN-S3-01 — Quote intradiario enriquecido**.
+Sprint cerrado en PR#15.
 
-Antes de editar codigo:
+Implementado:
 
-- revisar `src/services/market_data.py`
-- revisar tests actuales de market data
-- confirmar que `PriceResult` puede crecer sin romper consumidores
-- definir fallback explicito cuando yfinance no entregue cierre anterior
+- `PriceResult` expone `data_freshness`, `market_state`, `last_market_time`.
+- `/api/v1/portfolio/summary` expone datos live por instrumento y agregado `live_market`.
+- Instrumentos muestra badge de mercado separado de valuacion/senal.
+- Dashboard muestra panel `Sesion Live` y heatmap diario.
+
+Verificacion de cierre:
+
+```powershell
+py -3.12 -m pytest tests/ -v  # 216 passed
+cd frontend/client
+npx tsc --noEmit              # OK
+npm run build                 # OK
+```
 
