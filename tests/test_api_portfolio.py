@@ -84,6 +84,8 @@ def test_portfolio_summary_empty_db(client):
     body = client.get("/api/v1/portfolio/summary").json()
     assert body["total_valuation"] == 0.0
     assert body["by_asset"] == []
+    assert body["live_market"]["daily_pnl_total"] == 0.0
+    assert body["live_market"]["freshness_summary"] == {}
 
 
 # ── GET /api/v1/portfolio/by-source ──────────────────────────────────────────
@@ -204,6 +206,55 @@ def test_portfolio_summary_trace_has_day_change_fields_when_previous_close_avail
     assert trace["day_change"] == pytest.approx(300.0, abs=0.01)
     assert trace["day_change_pct"] == pytest.approx(7.14, abs=0.01)
     assert trace["day_impact"] is not None
+    assert trace["data_freshness"] == "UNAVAILABLE"  # legacy test quote default
+
+
+def test_portfolio_summary_exposes_live_market_aggregate(client, db_session, monkeypatch):
+    from decimal import Decimal
+    from src.services.market_data import PriceResult
+
+    _seed(db_session)
+    now = datetime(2026, 4, 30, 15, 30, tzinfo=timezone.utc)
+
+    def quote_with_live_fields(ticker, exchange=None, instrument_type=None):
+        return PriceResult(
+            input_ticker=ticker,
+            resolved_symbol=f"{ticker}.BA" if exchange == "BYMA" else ticker,
+            source="test",
+            price=Decimal("4500.0"),
+            currency="ARS",
+            timestamp=now,
+            fetched_at=now,
+            instrument_type=instrument_type,
+            exchange=exchange,
+            quote_unit="PRICE",
+            status="OK",
+            is_stale=False,
+            error=None,
+            previous_close=Decimal("4200.0"),
+            data_freshness="LIVE",
+            market_state="LIVE",
+            last_market_time=now,
+        )
+
+    monkeypatch.setattr(
+        "src.services.portfolio_engine.MarketDataService.get_quote",
+        quote_with_live_fields,
+    )
+
+    body = client.get("/api/v1/portfolio/summary").json()
+    live = body["live_market"]
+    ggal = {item["ticker"]: item for item in body["by_asset"]}["GGAL"]
+
+    assert live["daily_pnl_total"] > 0
+    assert live["daily_pnl_pct"] > 0
+    assert live["positive_count"] >= 1
+    assert live["freshness_summary"]["LIVE"] >= 1
+    assert live["last_market_time"] == now.isoformat()
+    assert ggal["day_change"] == pytest.approx(300.0, abs=0.01)
+    assert ggal["day_impact"] is not None
+    assert ggal["data_freshness"] == "LIVE"
+    assert ggal["market_state"] == "LIVE"
 
 
 def test_portfolio_summary_trace_day_change_none_without_previous_close(client, db_session):
@@ -218,6 +269,7 @@ def test_portfolio_summary_trace_day_change_none_without_previous_close(client, 
     assert trace["day_change"] is None
     assert trace["day_change_pct"] is None
     assert trace["day_impact"] is None
+    assert body["live_market"]["unavailable_count"] >= 1
 
 
 # ── PPC / avg_cost correctness ────────────────────────────────────────────────

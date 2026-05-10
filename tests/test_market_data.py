@@ -10,6 +10,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.services.market_data import (
+    FRESHNESS_CACHE,
+    FRESHNESS_LIVE,
+    FRESHNESS_STALE,
+    FRESHNESS_UNAVAILABLE,
     MarketDataService,
     PriceCache,
     PriceResult,
@@ -151,6 +155,9 @@ def test_get_quote_returns_price_result_for_bma_byma_equity():
     assert quote.status == STATUS_OK
     assert quote.is_stale is False
     assert quote.error is None
+    assert quote.data_freshness == FRESHNESS_LIVE
+    assert quote.market_state == FRESHNESS_LIVE
+    assert quote.last_market_time == quote.timestamp
 
 
 def test_get_quote_returns_price_result_for_ypfd_byma_equity():
@@ -179,6 +186,8 @@ def test_get_quote_uses_cache_with_explicit_status():
     assert quote.price == Decimal("10700.0")
     assert quote.status == STATUS_CACHED
     assert quote.is_stale is False
+    assert quote.data_freshness == FRESHNESS_CACHE
+    assert quote.market_state == FRESHNESS_CACHE
 
 
 def test_get_quote_returns_stale_cached_price_when_yfinance_fails():
@@ -198,6 +207,8 @@ def test_get_quote_returns_stale_cached_price_when_yfinance_fails():
     assert quote.status == STATUS_STALE
     assert quote.is_stale is True
     assert quote.error == "Yahoo no responde"
+    assert quote.data_freshness == FRESHNESS_STALE
+    assert quote.market_state == FRESHNESS_STALE
 
 
 def test_get_quote_yfinance_error_does_not_return_silent_zero_price():
@@ -207,6 +218,9 @@ def test_get_quote_yfinance_error_does_not_return_silent_zero_price():
     assert quote.price is None
     assert quote.status == STATUS_FETCH_ERROR
     assert quote.error is not None
+    assert quote.data_freshness == FRESHNESS_UNAVAILABLE
+    assert quote.market_state == FRESHNESS_UNAVAILABLE
+    assert quote.last_market_time is None
 
 
 # ── Refresh batch ─────────────────────────────────────────────────────────────
@@ -254,6 +268,9 @@ def test_get_all_cached_returns_current_cache():
     assert "GGAL.BA" in cached
     assert cached["GGAL.BA"]["price"] == 500.0
     assert "fetched_at" in cached["GGAL.BA"]
+    assert "last_market_time" in cached["GGAL.BA"]
+    assert cached["GGAL.BA"]["data_freshness"] == FRESHNESS_CACHE
+    assert cached["GGAL.BA"]["market_state"] == FRESHNESS_CACHE
     assert cached["GGAL.BA"]["expired"] is False
 
 
@@ -264,6 +281,7 @@ def test_get_all_cached_marks_expired_entries():
     )
     cached = MarketDataService.get_all_cached()
     assert cached["GGAL.BA"]["expired"] is True
+    assert cached["GGAL.BA"]["data_freshness"] == FRESHNESS_STALE
 
 
 # ── previous_close / variación intradiaria ────────────────────────────────────

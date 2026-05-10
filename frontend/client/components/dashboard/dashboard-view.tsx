@@ -8,7 +8,9 @@ import {
   Globe,
   LayoutGrid,
   BarChart2,
-  PieChart
+  PieChart,
+  Activity,
+  Clock
 } from "lucide-react"
 import {
   KpiCard,
@@ -21,8 +23,8 @@ import {
 import { AllocationDonut } from "./allocation-donut"
 import { MarketWidget } from "./market-widget"
 import { usePortfolioSummary, usePortfolioStatus } from "@/hooks/use-minos"
-import type { PortfolioStatusValue } from "@/types/minos"
-import { formatARS, formatARSCompact, formatPctAlloc } from "@/lib/minos-formatters"
+import type { ConsolidatedPortfolio, PortfolioStatusValue } from "@/types/minos"
+import { formatARS, formatARSCompact, formatPct, formatPctAlloc, formatPriceTime } from "@/lib/minos-formatters"
 import {
   BarChart,
   Bar,
@@ -176,6 +178,89 @@ function ReallocationPanel() {
   )
 }
 
+function liveTone(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "border-border/40 bg-muted/10 text-muted-foreground"
+  if (value > 0) return "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+  if (value < 0) return "border-rose-500/20 bg-rose-500/10 text-rose-400"
+  return "border-border/40 bg-muted/10 text-muted-foreground"
+}
+
+function freshnessTone(freshness: string): string {
+  if (freshness === "LIVE") return "text-emerald-400"
+  if (freshness === "CACHE") return "text-sky-400"
+  if (freshness === "STALE") return "text-amber-400"
+  return "text-muted-foreground"
+}
+
+function LiveSessionPanel({ data }: { data: ConsolidatedPortfolio }) {
+  const live = data.live_market
+  if (!live) return null
+
+  const heatmap = data.by_asset
+    .slice()
+    .sort((a, b) => Math.abs(b.day_change_pct ?? 0) - Math.abs(a.day_change_pct ?? 0))
+    .slice(0, 12)
+
+  const dominantFreshness = Object.entries(live.freshness_summary ?? {})
+    .sort((a, b) => b[1] - a[1])[0]?.[0] ?? "UNAVAILABLE"
+
+  return (
+    <SectionPanel delay={0.2}>
+      <SectionHeader title="Sesión Live" subtitle="Movimiento diario y frescura de mercado">
+        <div className={`flex items-center gap-1.5 text-[10px] font-black tracking-widest ${freshnessTone(dominantFreshness)}`}>
+          <Activity className="size-3.5" />
+          {dominantFreshness}
+        </div>
+      </SectionHeader>
+
+      <div className="grid gap-3 md:grid-cols-4">
+        <div className={`rounded-xl border px-4 py-3 ${liveTone(live.daily_pnl_total)}`}>
+          <p className="text-[9px] font-bold uppercase tracking-widest opacity-80">Impacto día</p>
+          <p className="mt-1 font-mono text-lg font-black">{formatARS(live.daily_pnl_total)}</p>
+          <p className="text-[11px] font-bold">{formatPct(live.daily_pnl_pct)}</p>
+        </div>
+        <div className="rounded-xl border border-border/40 bg-background/35 px-4 py-3">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Balance</p>
+          <div className="mt-2 flex items-center gap-3 text-xs font-black">
+            <span className="text-emerald-400">{live.positive_count} +</span>
+            <span className="text-rose-400">{live.negative_count} -</span>
+            <span className="text-muted-foreground">{live.unavailable_count} s/d</span>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border/40 bg-background/35 px-4 py-3">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Frescura</p>
+          <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-black">
+            {Object.entries(live.freshness_summary ?? {}).map(([key, count]) => (
+              <span key={key} className={freshnessTone(key)}>{key}:{count}</span>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-xl border border-border/40 bg-background/35 px-4 py-3">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Último dato</p>
+          <div className="mt-2 flex items-center gap-2 text-xs font-bold text-foreground">
+            <Clock className="size-3.5 text-muted-foreground" />
+            {live.last_market_time ? formatPriceTime(live.last_market_time) : "-"}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+        {heatmap.map((asset) => (
+          <div key={asset.ticker} className={`rounded-lg border px-3 py-2 ${liveTone(asset.day_change_pct)}`}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-xs font-black">{asset.ticker}</span>
+              <span className="font-mono text-[11px] font-black">{asset.day_change_pct == null ? "-" : formatPct(asset.day_change_pct)}</span>
+            </div>
+            <p className="mt-1 truncate font-mono text-[10px] opacity-80">
+              {asset.day_impact == null ? "sin dato diario" : formatARS(asset.day_impact)}
+            </p>
+          </div>
+        ))}
+      </div>
+    </SectionPanel>
+  )
+}
+
 export function DashboardView() {
   const { data, loading, error, refetch } = usePortfolioSummary()
 
@@ -233,6 +318,8 @@ export function DashboardView() {
 
       {/* Intelligence Status Banner */}
       <IntelligenceBanner />
+
+      <LiveSessionPanel data={data} />
 
       {/* Main Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

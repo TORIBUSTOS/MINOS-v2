@@ -11,6 +11,10 @@ STATUS_OK = "OK"
 STATUS_CACHED = "CACHED"
 STATUS_STALE = "STALE"
 STATUS_FETCH_ERROR = "FETCH_ERROR"
+FRESHNESS_LIVE = "LIVE"
+FRESHNESS_CACHE = "CACHE"
+FRESHNESS_STALE = "STALE"
+FRESHNESS_UNAVAILABLE = "UNAVAILABLE"
 
 
 def resolve_symbol(ticker: str, exchange: str | None = None, instrument_type: str | None = None) -> str:
@@ -46,6 +50,19 @@ class PriceResult:
     is_stale: bool
     error: str | None
     previous_close: Decimal | None = None
+    data_freshness: str = FRESHNESS_UNAVAILABLE
+    market_state: str = FRESHNESS_UNAVAILABLE
+    last_market_time: datetime | None = None
+
+
+def _freshness_for_status(status: str, has_price: bool) -> str:
+    if status == STATUS_OK and has_price:
+        return FRESHNESS_LIVE
+    if status == STATUS_CACHED and has_price:
+        return FRESHNESS_CACHE
+    if status == STATUS_STALE and has_price:
+        return FRESHNESS_STALE
+    return FRESHNESS_UNAVAILABLE
 
 
 class MarketDataService:
@@ -98,6 +115,8 @@ class MarketDataService:
         is_stale: bool,
         error: str | None = None,
     ) -> PriceResult:
+        freshness = _freshness_for_status(status, cache.price is not None)
+        last_market_time = cache.timestamp or cache.fetched_at
         return PriceResult(
             input_ticker=input_ticker,
             resolved_symbol=resolved_symbol,
@@ -113,6 +132,9 @@ class MarketDataService:
             is_stale=is_stale,
             error=error,
             previous_close=cache.previous_close,
+            data_freshness=freshness,
+            market_state=freshness,
+            last_market_time=last_market_time,
         )
 
     @classmethod
@@ -158,6 +180,7 @@ class MarketDataService:
                 timestamp=timestamp,
                 previous_close=previous_close,
             )
+            freshness = _freshness_for_status(STATUS_OK, True)
             return PriceResult(
                 input_ticker=ticker,
                 resolved_symbol=resolved_symbol,
@@ -173,6 +196,9 @@ class MarketDataService:
                 is_stale=False,
                 error=None,
                 previous_close=previous_close,
+                data_freshness=freshness,
+                market_state=freshness,
+                last_market_time=timestamp,
             )
         except (Exception, InvalidOperation) as exc:
             if cached:
@@ -200,6 +226,9 @@ class MarketDataService:
                 status=STATUS_FETCH_ERROR,
                 is_stale=False,
                 error=str(exc),
+                data_freshness=FRESHNESS_UNAVAILABLE,
+                market_state=FRESHNESS_UNAVAILABLE,
+                last_market_time=None,
             )
 
     @classmethod
@@ -253,14 +282,21 @@ class MarketDataService:
     @classmethod
     def get_all_cached(cls) -> dict[str, dict]:
         """Retorna snapshot del cache actual con precios y timestamps."""
-        return {
-            ticker: {
+        snapshot = {}
+        for ticker, entry in cls._cache.items():
+            status = STATUS_STALE if cls._is_expired(entry) else STATUS_CACHED
+            freshness = _freshness_for_status(status, entry.price is not None)
+            last_market_time = entry.timestamp or entry.fetched_at
+            snapshot[ticker] = {
                 "price": entry.price,
                 "fetched_at": entry.fetched_at.isoformat(),
                 "currency": entry.currency,
-                "timestamp": (entry.timestamp or entry.fetched_at).isoformat(),
-                "status": STATUS_STALE if cls._is_expired(entry) else STATUS_CACHED,
+                "timestamp": last_market_time.isoformat(),
+                "last_market_time": last_market_time.isoformat(),
+                "previous_close": entry.previous_close,
+                "status": status,
+                "data_freshness": freshness,
+                "market_state": freshness,
                 "expired": cls._is_expired(entry),
             }
-            for ticker, entry in cls._cache.items()
-        }
+        return snapshot

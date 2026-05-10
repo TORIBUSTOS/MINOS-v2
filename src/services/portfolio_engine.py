@@ -5,6 +5,7 @@ Retorna patrimonio total, distribución por activo, fuente y moneda.
 from collections import defaultdict
 from dataclasses import asdict
 from decimal import Decimal, ROUND_HALF_UP
+from datetime import datetime
 from sqlalchemy.orm import Session
 
 from src.models.portfolio import Portfolio
@@ -19,6 +20,20 @@ PCT_QUANT = Decimal("0.0001")
 TRACE_PCT_QUANT = Decimal("0.01")
 SUPPORTED_DYNAMIC_ASSET_TYPES = {"EQUITY", "CEDEAR"}
 VALUATION_STATUS_NO_DYNAMIC_QUOTE = "NO_DYNAMIC_QUOTE"
+FRESHNESS_UNAVAILABLE = "UNAVAILABLE"
+
+
+def _empty_live_market() -> dict:
+    return {
+        "daily_pnl_total": 0.0,
+        "daily_pnl_pct": 0.0,
+        "positive_count": 0,
+        "negative_count": 0,
+        "unchanged_count": 0,
+        "unavailable_count": 0,
+        "freshness_summary": {},
+        "last_market_time": None,
+    }
 
 
 def _decimal(value) -> Decimal:
@@ -80,9 +95,11 @@ def _quote_trace(quote: PriceResult, quantity: Decimal, market_value: Decimal, c
             "day_change": day_change,
             "day_change_pct": day_change_pct,
             "day_impact": day_impact,
+            "daily_impact_status": "OK" if day_impact is not None else FRESHNESS_UNAVAILABLE,
             "valuation_status": quote.status,
             "timestamp": quote.timestamp.isoformat() if quote.timestamp else None,
             "fetched_at": quote.fetched_at.isoformat(),
+            "last_market_time": quote.last_market_time.isoformat() if quote.last_market_time else None,
         }
     )
     return trace
@@ -108,6 +125,10 @@ def _fallback_trace(
         "day_change": None,
         "day_change_pct": None,
         "day_impact": None,
+        "daily_impact_status": FRESHNESS_UNAVAILABLE,
+        "data_freshness": FRESHNESS_UNAVAILABLE,
+        "market_state": FRESHNESS_UNAVAILABLE,
+        "last_market_time": None,
         "currency": pos.currency,
         "timestamp": None,
         "fetched_at": None,
@@ -125,6 +146,33 @@ def _fallback_trace(
         "pnl_absolute": _to_float(market_value - cost_basis),
         "pnl_percentage": _to_float((market_value - cost_basis) / cost_basis * Decimal("100"), TRACE_PCT_QUANT) if cost_basis else 0.0,
     }
+
+
+def _first_trace_value(traces: list[dict], key: str):
+    return traces[0].get(key) if traces else None
+
+
+def _sum_trace_money(traces: list[dict], key: str) -> Decimal | None:
+    values = [trace.get(key) for trace in traces if trace.get(key) is not None]
+    if not values:
+        return None
+    return sum((_decimal(value) for value in values), Decimal("0"))
+
+
+def _latest_iso(values: list[str | None]) -> str | None:
+    latest: datetime | None = None
+    latest_raw: str | None = None
+    for value in values:
+        if not value:
+            continue
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError:
+            continue
+        if latest is None or parsed > latest:
+            latest = parsed
+            latest_raw = value
+    return latest_raw
 
 
 def _position_valuation(pos: Position) -> dict:
@@ -194,6 +242,7 @@ def consolidate(db: Session) -> dict:
             "by_asset": [],
             "by_source": [],
             "by_currency": [],
+            "live_market": _empty_live_market(),
         }
 
     valued_rows = [
@@ -238,10 +287,19 @@ def consolidate(db: Session) -> dict:
             "portfolio_weight": _pct(val, total),
             "portfolios": sorted(asset_portfolios[ticker]),
             "valuation_status": asset_traces[ticker][0]["valuation_status"],
+            "day_change": _first_trace_value(asset_traces[ticker], "day_change"),
+            "day_change_pct": _first_trace_value(asset_traces[ticker], "day_change_pct"),
+            "day_impact": _to_float(day_impact) if day_impact is not None else None,
+            "data_freshness": _first_trace_value(asset_traces[ticker], "data_freshness") or FRESHNESS_UNAVAILABLE,
+            "market_state": _first_trace_value(asset_traces[ticker], "market_state") or FRESHNESS_UNAVAILABLE,
+            "last_market_time": _latest_iso([trace.get("last_market_time") or trace.get("timestamp") for trace in asset_traces[ticker]]),
             "valuation_trace": asset_traces[ticker][0],
             "valuation_traces": asset_traces[ticker],
         }
-        for ticker, val in sorted(asset_val.items(), key=lambda x: -x[1])
+        for ticker, val, day_impact in (
+            (ticker, val, _sum_trace_money(asset_traces[ticker], "day_impact"))
+            for ticker, val in sorted(asset_val.items(), key=lambda x: -x[1])
+        )
     ]
 
     # by_source
@@ -264,9 +322,48 @@ def consolidate(db: Session) -> dict:
         for cur, val in sorted(currency_val.items(), key=lambda x: -x[1])
     ]
 
+    live_traces = [trace for traces in asset_traces.values() for trace in traces]
+    daily_pnl = sum(
+        (_decimal(trace["day_impact"]) for trace in live_traces if trace.get("day_impact") is not None),
+        Decimal("0"),
+    )
+    freshness_summary: dict[str, int] = defaultdict(int)
+    for trace in live_traces:
+        freshness_summary[trace.get("data_freshness") or FRESHNESS_UNAVAILABLE] += 1
+
+    positive_count = 0
+    negative_count = 0
+    unchanged_count = 0
+    unavailable_count = 0
+    for asset in by_asset:
+        day_change = asset.get("day_change")
+        if day_change is None:
+            unavailable_count += 1
+        elif day_change > 0:
+            positive_count += 1
+        elif day_change < 0:
+            negative_count += 1
+        else:
+            unchanged_count += 1
+
+    live_market = {
+        "daily_pnl_total": _to_float(daily_pnl),
+        "daily_pnl_pct": _pct(daily_pnl, total),
+        "positive_count": positive_count,
+        "negative_count": negative_count,
+        "unchanged_count": unchanged_count,
+        "unavailable_count": unavailable_count,
+        "freshness_summary": dict(freshness_summary),
+        "last_market_time": _latest_iso([
+            trace.get("last_market_time") or trace.get("timestamp")
+            for trace in live_traces
+        ]),
+    }
+
     return {
         "total_valuation": _to_float(total),
         "by_asset": by_asset,
         "by_source": by_source,
         "by_currency": by_currency,
+        "live_market": live_market,
     }

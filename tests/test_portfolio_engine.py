@@ -56,6 +56,49 @@ def _seed_two_portfolios(db: Session):
     db.commit()
 
 
+def test_consolidate_adds_live_market_summary(db_session, monkeypatch):
+    src = make_source(db_session, "Balanz")
+    port = make_portfolio(db_session, "Principal", src)
+    asset = make_asset(db_session, "GGAL")
+    make_position(db_session, port, asset, "GGAL", quantity=10.0, valuation=45000.0, currency="ARS")
+    db_session.commit()
+
+    now = datetime(2026, 4, 30, 15, 30, tzinfo=timezone.utc)
+
+    def fake_get_quote(ticker, exchange=None, instrument_type=None):
+        return PriceResult(
+            input_ticker=ticker,
+            resolved_symbol="GGAL.BA",
+            source="test",
+            price=Decimal("4500.0"),
+            currency="ARS",
+            timestamp=now,
+            fetched_at=now,
+            instrument_type=instrument_type,
+            exchange=exchange,
+            quote_unit="PRICE",
+            status="OK",
+            is_stale=False,
+            error=None,
+            previous_close=Decimal("4200.0"),
+            data_freshness="LIVE",
+            market_state="LIVE",
+            last_market_time=now,
+        )
+
+    monkeypatch.setattr("src.services.portfolio_engine.MarketDataService.get_quote", fake_get_quote)
+
+    result = consolidate(db_session)
+    asset_row = result["by_asset"][0]
+
+    assert asset_row["day_change"] == pytest.approx(300.0)
+    assert asset_row["day_impact"] == pytest.approx(3000.0)
+    assert asset_row["data_freshness"] == "LIVE"
+    assert result["live_market"]["daily_pnl_total"] == pytest.approx(3000.0)
+    assert result["live_market"]["positive_count"] == 1
+    assert result["live_market"]["freshness_summary"]["LIVE"] == 1
+
+
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
 def test_consolidate_empty_db_returns_zero(db_session):
