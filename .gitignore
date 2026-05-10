@@ -31,16 +31,31 @@ alembic/versions/*.pyc
 .pytest_cache/
 .coverage
 htmlcov/
+output/
 
 # IDE
 .vscode/
 .idea/
+.kilo/
 *.swp
 
 # OS
 .DS_Store
 Thumbs.db
 
+# Frontend
+node_modules/
+.next/
+
 # Logs
 *.log
 logs/
+
+# Local financial evidence / volatile broker snapshots
+*.zip
+minos-prime/*Balanz*.png
+minos-prime/*BYMA*.png
+minos-prime/*acciones*.png
+minos-prime/*cedears*.png
+tests/*Balanz*.pdf
+tests/minos-plantilla-posiciones.csv
