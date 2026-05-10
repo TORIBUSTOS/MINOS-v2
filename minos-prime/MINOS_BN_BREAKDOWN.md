@@ -425,20 +425,22 @@ A ──→ C ─────────→ E
 
 ---
 
-## SPRINT 3 — LIVE MARKET LAYER 🟡
+## SPRINT 3 — LIVE MARKET LAYER ✅
 
-**Estado:** FORMALIZADO / listo para ejecucion  
+**Estado:** CERRADO ✅  
 **Objetivo:** Convertir la valuacion broker-grade en una capa operativa viva con variacion intradiaria, impacto diario y estado de frescura de mercado.
 
 Documento de ejecucion: `minos-prime/SPRINT_3_LIVE_MARKET_LAYER.md`
 
 | BN | Descripción corta | Estado |
 |----|-------------------|--------|
-| BN-S3-01 | Quote intradiario enriquecido | 🟡 Proximo |
-| BN-S3-02 | Impacto diario en PortfolioEngine | Pendiente |
-| BN-S3-03 | Contrato API Live Market | Pendiente |
-| BN-S3-04 | UI live en Instrumentos | Pendiente |
-| BN-S3-05 | Dashboard Live Session | Pendiente |
-| BN-S3-06 | Verificacion y cierre | Pendiente |
+| BN-S3-01 | Quote intradiario enriquecido | ✅ |
+| BN-S3-02 | Impacto diario en PortfolioEngine | ✅ |
+| BN-S3-03 | Contrato API Live Market | ✅ |
+| BN-S3-04 | UI live en Instrumentos | ✅ |
+| BN-S3-05 | Dashboard Live Session | ✅ |
+| BN-S3-06 | Verificacion y cierre | ✅ |
 
-**Próximo paso:** Ejecutar BN-S3-01.
+**Resultado:** Sprint 3 completado. MINOS expone frescura de mercado `LIVE/CACHE/STALE/UNAVAILABLE`, impacto diario por instrumento, resumen agregado `live_market`, badge de mercado en Instrumentos y panel de Sesion Live con heatmap diario en Dashboard.
+
+**Verificacion:** `216 passed`, TypeScript OK, Next build OK, validacion visual Playwright desktop/mobile en `/` y `/instruments`.

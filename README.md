@@ -74,7 +74,7 @@ Frontend local: `http://localhost:4400`
 
 ### Fase
 
-MINOS PRIME v2 — Sprint 3 formalizado / listo para ejecucion
+MINOS PRIME v2 — Sprint 3 Live Market Layer implementado
 
 ### Stack
 
@@ -88,6 +88,7 @@ MINOS PRIME v2 — Sprint 3 formalizado / listo para ejecucion
 | Signals Engine | Operativo |
 | Portfolio Summary | Operativo |
 | Sistema de ingestión | Operativo |
+| Live Market Layer | Operativo |
 
 ---
 
@@ -106,6 +107,8 @@ MINOS PRIME v2 — Sprint 3 formalizado / listo para ejecucion
 - Reset seguro de datos cargados.
 - Portfolio summary consolidado.
 - Tabla institucional de instrumentos.
+- Variación diaria, impacto diario y frescura de mercado (`LIVE/CACHE/STALE/UNAVAILABLE`).
+- Dashboard con sesión live y heatmap de movimiento diario.
 
 ---
 
@@ -130,13 +133,11 @@ MINOS PRIME v2 — Sprint 3 formalizado / listo para ejecucion
 
 ---
 
-## Roadmap Inmediato — Sprint 3
+## Sprint 3 — Live Market Layer
 
 ### LIVE MARKET LAYER
 
-Scope formalizado en `minos-prime/SPRINT_3_LIVE_MARKET_LAYER.md`.
-
-Próxima capa institucional:
+Implementado en PR#15:
 
 - Variación intradiaria (%)
 - Variación intradiaria ($)
@@ -144,17 +145,11 @@ Próxima capa institucional:
 - Estado LIVE/CACHE separado de BUY/HOLD/SELL
 - Session summary bar
 - Heatmap de rendimiento diario
-- Métricas de flujo y exposición
+- Métricas de frescura y exposición diaria
 
 Objetivo:
 
 Transformar MINOS PRIME desde un dashboard financiero hacia una terminal operativa viva.
-
-Primer BN recomendado:
-
-```text
-BN-S3-01 — Quote intradiario enriquecido
-```
 
 ---
 
