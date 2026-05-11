@@ -214,6 +214,7 @@ UPLOAD_CONFIRMED | MANUAL_ENTRY | MARKET_REFRESH | MANUAL_SNAPSHOT
 **Tipo:** Backend / portfolio diff
 **Depende de:** BN-S4-03
 **Archivos esperados:** servicio de diff, ruta API, tests.
+**Estado:** IMPLEMENTADO
 
 ### Objetivo
 
@@ -234,10 +235,18 @@ summary
 
 ### Criterio de aceptacion
 
-- Existe endpoint o contrato para obtener diff entre snapshots.
-- Los cambios incluyen severidad (`INFO`, `WARN`, `ACTION`).
-- No confunde movimiento de mercado con cambios por carga.
-- Tests cubren altas, bajas, cambios de valuacion y sin cambios.
+- [x] Existe endpoint o contrato para obtener diff entre snapshots.
+- [x] Los cambios incluyen severidad (`INFO`, `WARN`, `ACTION`).
+- [x] No confunde movimiento de mercado con cambios por carga.
+- [x] Tests cubren altas, bajas, cambios de valuacion y sin cambios.
+
+### Implementado
+
+- Servicio `src/services/portfolio_changes.py` para comparar dos snapshots patrimoniales.
+- Endpoint `GET /api/v1/portfolio/snapshots/diff/latest` para comparar los dos snapshots mas recientes.
+- Endpoint `GET /api/v1/portfolio/snapshots/diff?from_snapshot_id=...&to_snapshot_id=...` para comparar snapshots puntuales.
+- Categorias devueltas: `new_positions`, `removed_positions`, `quantity_changes`, `valuation_changes`, `signal_changes`, `freshness_changes`, `large_moves` y `summary`.
+- Tests en `tests/test_portfolio_changes.py`.
 
 ---
 
