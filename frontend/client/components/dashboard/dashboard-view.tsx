@@ -6,7 +6,6 @@ import {
   Building2,
   BarChart2,
   PieChart,
-  Activity,
   Clock,
   Settings2
 } from "lucide-react"
@@ -60,7 +59,7 @@ type DashboardKpi = {
 }
 
 const DASHBOARD_KPI_STORAGE_KEY = "minos.dashboard.kpiSlots.v1"
-const DEFAULT_DASHBOARD_KPIS: DashboardKpiId[] = ["total_pnl", "top_exposure", "daily_balance", "market_freshness"]
+const DEFAULT_DASHBOARD_KPIS: DashboardKpiId[] = ["total_pnl", "top_exposure", "daily_balance", "last_market_time"]
 
 function signedMoney(value: number): string {
   const sign = value > 0 ? "+" : value < 0 ? "-" : ""
@@ -77,6 +76,13 @@ function toneFromNumber(value: number | null | undefined): DashboardKpi["tone"] 
 function dominantFreshness(data: ConsolidatedPortfolio): string {
   return Object.entries(data.live_market?.freshness_summary ?? {})
     .sort((a, b) => b[1] - a[1])[0]?.[0] ?? "UNAVAILABLE"
+}
+
+function marketStateLabel(freshness: string): string {
+  if (freshness === "LIVE") return "Mercado abierto"
+  if (freshness === "CACHE") return "Mercado cerrado"
+  if (freshness === "STALE") return "Dato demorado"
+  return "Sin dato"
 }
 
 function buildDashboardKpis(data: ConsolidatedPortfolio): DashboardKpi[] {
@@ -124,9 +130,9 @@ function buildDashboardKpis(data: ConsolidatedPortfolio): DashboardKpi[] {
     },
     {
       id: "market_freshness",
-      label: "Frescura mercado",
-      value: `${freshness} · ${freshnessCount}`,
-      subtext: "instrumentos dominantes",
+      label: "Estado mercado",
+      value: marketStateLabel(freshness),
+      subtext: `${freshnessCount} instrumentos`,
       tone: freshness === "LIVE" ? "gain" : freshness === "STALE" ? "warning" : freshness === "CACHE" ? "primary" : "default",
     },
     {
@@ -289,8 +295,6 @@ function CapitalOverviewPanel({ data }: { data: ConsolidatedPortfolio }) {
   const [slots, setSlots] = React.useState<DashboardKpiId[]>(DEFAULT_DASHBOARD_KPIS)
   const kpis = React.useMemo(() => buildDashboardKpis(data), [data])
   const kpiMap = React.useMemo(() => new Map(kpis.map((kpi) => [kpi.id, kpi])), [kpis])
-  const live = data.live_market
-  const freshness = dominantFreshness(data)
 
   React.useEffect(() => {
     setSlots(loadKpiSlots())
@@ -313,19 +317,6 @@ function CapitalOverviewPanel({ data }: { data: ConsolidatedPortfolio }) {
             <h1 className="mt-1 font-mono text-[clamp(1.65rem,5.4vw,3.15rem)] font-black leading-none text-foreground">
               {formatARS(data.total_valuation)}
             </h1>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {live ? (
-                <span className={`rounded-md border px-2 py-0.5 text-[9px] font-black ${liveTone(live.daily_pnl_total)}`}>
-                  Día {signedMoney(live.daily_pnl_total)} · {formatPct(live.daily_pnl_pct)}
-                </span>
-              ) : null}
-              <span className="rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[9px] font-black text-sky-400">
-                {freshness} · {data.live_market?.freshness_summary?.[freshness] ?? 0} instrumentos
-              </span>
-              <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[9px] font-black text-amber-400">
-                Último dato {live?.last_market_time ? formatPriceTime(live.last_market_time) : "-"}
-              </span>
-            </div>
           </div>
 
           <button
@@ -450,13 +441,6 @@ function liveTone(value: number | null | undefined): string {
   return "border-border/40 bg-muted/10 text-muted-foreground"
 }
 
-function freshnessTone(freshness: string): string {
-  if (freshness === "LIVE") return "text-emerald-400"
-  if (freshness === "CACHE") return "text-sky-400"
-  if (freshness === "STALE") return "text-amber-400"
-  return "text-muted-foreground"
-}
-
 function LiveSessionPanel({ data }: { data: ConsolidatedPortfolio }) {
   const live = data.live_market
   if (!live) return null
@@ -471,14 +455,9 @@ function LiveSessionPanel({ data }: { data: ConsolidatedPortfolio }) {
 
   return (
     <SectionPanel delay={0.2}>
-      <SectionHeader title="Sesión Live" subtitle="Movimiento diario y frescura de mercado">
-        <div className={`flex items-center gap-1.5 text-[10px] font-black tracking-widest ${freshnessTone(dominantFreshness)}`}>
-          <Activity className="size-3.5" />
-          {dominantFreshness}
-        </div>
-      </SectionHeader>
+      <SectionHeader title="Sesión Live" subtitle="Movimiento diario de la cartera" />
 
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-3">
         <div className={`rounded-xl border px-4 py-3 ${liveTone(live.daily_pnl_total)}`}>
           <p className="text-[9px] font-bold uppercase tracking-widest opacity-80">Impacto día</p>
           <p className="mt-1 font-mono text-lg font-black">{formatARS(live.daily_pnl_total)}</p>
@@ -493,19 +472,12 @@ function LiveSessionPanel({ data }: { data: ConsolidatedPortfolio }) {
           </div>
         </div>
         <div className="rounded-xl border border-border/40 bg-background/35 px-4 py-3">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Frescura</p>
-          <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-black">
-            {Object.entries(live.freshness_summary ?? {}).map(([key, count]) => (
-              <span key={key} className={freshnessTone(key)}>{key}:{count}</span>
-            ))}
-          </div>
-        </div>
-        <div className="rounded-xl border border-border/40 bg-background/35 px-4 py-3">
           <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Último dato</p>
           <div className="mt-2 flex items-center gap-2 text-xs font-bold text-foreground">
             <Clock className="size-3.5 text-muted-foreground" />
             {live.last_market_time ? formatPriceTime(live.last_market_time) : "-"}
           </div>
+          <p className="mt-1 text-[10px] font-bold text-muted-foreground">{marketStateLabel(dominantFreshness)}</p>
         </div>
       </div>
 
