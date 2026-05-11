@@ -284,6 +284,20 @@ function freshnessClassName(freshness: string): string {
   return "bg-muted/10 text-muted-foreground border-border/30"
 }
 
+function marketBadgeLabel(row: BrokerRow): string {
+  if (row.marketState === "CACHE" || row.dataFreshness === "CACHE") return "CERRADO"
+  if (row.marketState === "UNAVAILABLE" || row.dataFreshness === "UNAVAILABLE") return "SIN DATO"
+  return row.marketState || row.dataFreshness
+}
+
+function marketBadgeTitle(row: BrokerRow): string {
+  const time = row.lastMarketTime ? ` · ${formatTime(row.lastMarketTime)}` : ""
+  if (row.marketState === "CACHE" || row.dataFreshness === "CACHE") {
+    return `Mercado cerrado o sin nueva rueda: usando precio cacheado${time}`
+  }
+  return `${row.marketState}${time}`
+}
+
 function pnlClassName(value: number): string {
   if (value > 0) return "text-fin-gain"
   if (value < 0) return "text-fin-loss"
@@ -628,9 +642,9 @@ export default function InstrumentsPage() {
                                   {show.marketStatus && <TableCell className="text-center">
                                     <Badge
                                       className={cn("max-w-full truncate border px-1.5 py-0 text-[9px] font-black tracking-widest", freshnessClassName(row.dataFreshness))}
-                                      title={`${row.marketState}${row.lastMarketTime ? ` · ${formatTime(row.lastMarketTime)}` : ""}`}
+                                      title={marketBadgeTitle(row)}
                                     >
-                                      {row.dataFreshness}
+                                      {marketBadgeLabel(row)}
                                     </Badge>
                                   </TableCell>}
                                   <TableCell className="text-center">
@@ -706,9 +720,9 @@ export default function InstrumentsPage() {
                               ) : null}
                               <Badge
                                 className={cn("border px-1.5 py-0 text-[9px] font-black tracking-widest", freshnessClassName(row.dataFreshness))}
-                                title={`${row.marketState}${row.lastMarketTime ? ` · ${formatTime(row.lastMarketTime)}` : ""}`}
+                                title={marketBadgeTitle(row)}
                               >
-                                {row.dataFreshness}
+                                {marketBadgeLabel(row)}
                               </Badge>
                             </div>
                           }
