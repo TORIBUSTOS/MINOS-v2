@@ -2,11 +2,12 @@
 Ingestion service: parsea CSV/XLSX, valida rows, persiste posiciones.
 Nunca persiste sin validación.
 """
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
 import os
 from pathlib import Path
 import re
+from uuid import uuid4
 from typing import Any
 
 import pandas as pd
@@ -647,16 +648,50 @@ def ingest_file(
     return {"processed": processed, "rejected": rejected, "warnings": warnings}
 
 
-def preview_file(content: bytes, filename: str) -> dict[str, Any]:
+def _safe_float(value: Any) -> float | None:
+    return float(value) if pd.notna(value) else None
+
+
+def _existing_file_tickers(db: Session | None, source_name: str | None, portfolio_name: str | None) -> set[str]:
+    if db is None or not source_name or not portfolio_name:
+        return set()
+    source = (
+        db.query(Source)
+        .filter(func.lower(Source.name) == _canonical_source_name(source_name).lower())
+        .first()
+    )
+    if not source:
+        return set()
+    portfolio = db.query(Portfolio).filter_by(name=portfolio_name, source_id=source.id).first()
+    if not portfolio:
+        return set()
+    return {
+        ticker
+        for (ticker,) in db.query(Position.ticker)
+        .filter(Position.portfolio_id == portfolio.id, Position.load_type == "file")
+        .all()
+    }
+
+
+def preview_file(
+    content: bytes,
+    filename: str,
+    source_name: str | None = None,
+    portfolio_name: str | None = None,
+    db: Session | None = None,
+) -> dict[str, Any]:
     df = _parse_file(content, filename)
     parser_warnings = list(df.attrs.get("warnings", []))
     missing_columns = list(df.attrs.get("missing_columns", []))
     detected_layout = df.attrs.get("detected_layout", "tabular_file")
     can_confirm = bool(df.attrs.get("can_confirm", True))
     df = _normalize_columns(df)
+    existing_tickers = _existing_file_tickers(db, source_name, portfolio_name)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
 
     rows: list[dict[str, Any]] = []
     rejected = 0
+    rejected_rows: list[dict[str, Any]] = []
     warnings = list(parser_warnings)
     for i, row in df.iterrows():
         row_dict = row.to_dict()
@@ -664,34 +699,79 @@ def preview_file(content: bytes, filename: str) -> dict[str, Any]:
         if not valid:
             rejected += 1
             warnings.append(f"Fila {i + 2}: {reason}")
+            rejected_rows.append({
+                "row_number": i + 2,
+                "reason": reason,
+                "raw": {key: str(value) for key, value in row_dict.items()},
+            })
             continue
+        ticker = str(row_dict["ticker"]).strip().upper()
+        cantidad = float(row_dict["cantidad"])
+        moneda = str(row_dict.get("moneda", "ARS")).strip().upper()
+        precio = _safe_float(row_dict.get("precio"))
+        valuacion = float(row_dict["valuacion"])
+        valor_inicial = _safe_float(row_dict.get("valor_inicial"))
+        rendimiento = _safe_float(row_dict.get("rendimiento"))
+        pct_rendimiento = _safe_float(row_dict.get("pct_rendimiento"))
+        dpt = _safe_float(row_dict.get("dpt"))
+        asset_type = _normalise_asset_type(row_dict.get("asset_type"))
+        complete = _is_complete_balanz_row(row_dict) if "asset_type" in df.columns else True
+        action_hint = "REVIEW" if not complete else "UPDATE" if ticker in existing_tickers else "CREATE"
         rows.append(
             {
-                "ticker": str(row_dict["ticker"]).strip().upper(),
-                "cantidad": float(row_dict["cantidad"]),
-                "moneda": str(row_dict.get("moneda", "ARS")).strip().upper(),
-                "precio": float(row_dict["precio"]) if pd.notna(row_dict.get("precio")) else None,
+                "ticker": ticker,
+                "cantidad": cantidad,
+                "quantity": cantidad,
+                "moneda": moneda,
+                "currency": moneda,
+                "precio": precio,
+                "price": precio,
                 "fecha": str(pd.to_datetime(row_dict.get("fecha", date.today())).date()),
-                "ppc": float(row_dict["ppc"]) if pd.notna(row_dict.get("ppc")) else None,
-                "valuacion": float(row_dict["valuacion"]),
-                "valor_inicial": float(row_dict["valor_inicial"]) if pd.notna(row_dict.get("valor_inicial")) else None,
-                "rendimiento": float(row_dict["rendimiento"]) if pd.notna(row_dict.get("rendimiento")) else None,
-                "pct_rendimiento": float(row_dict["pct_rendimiento"]) if pd.notna(row_dict.get("pct_rendimiento")) else None,
-                "dpt": float(row_dict["dpt"]) if pd.notna(row_dict.get("dpt")) else None,
-                "asset_type": _normalise_asset_type(row_dict.get("asset_type")),
-                "complete": _is_complete_balanz_row(row_dict) if "asset_type" in df.columns else True,
+                "ppc": _safe_float(row_dict.get("ppc")),
+                "valuacion": valuacion,
+                "market_value": valuacion,
+                "valor_inicial": valor_inicial,
+                "initial_value": valor_inicial,
+                "rendimiento": rendimiento,
+                "return_value": rendimiento,
+                "pct_rendimiento": pct_rendimiento,
+                "return_pct": pct_rendimiento,
+                "dpt": dpt,
+                "asset_type": asset_type,
+                "source_row": i + 2,
+                "source_section": asset_type if "asset_type" in df.columns else None,
+                "confidence": 1.0 if complete else 0.55,
+                "action_hint": action_hint,
+                "complete": complete,
             }
         )
 
     if rejected:
         can_confirm = False
+    if any(row["action_hint"] == "REVIEW" for row in rows):
+        can_confirm = False
+    action_counts: dict[str, int] = {"CREATE": 0, "UPDATE": 0, "IGNORE": 0, "REVIEW": 0}
+    for row in rows:
+        action_counts[row["action_hint"]] += 1
     return {
+        "preview_id": str(uuid4()),
         "filename": filename,
+        "source_name": source_name,
+        "portfolio_name": portfolio_name,
         "detected_layout": detected_layout,
         "can_confirm": can_confirm and rejected == 0,
+        "expires_at": expires_at.isoformat(),
         "missing_columns": missing_columns,
+        "detected_positions": rows,
         "rows": rows,
+        "rejected_rows": rejected_rows,
         "processed": len(rows),
         "rejected": rejected,
         "warnings": warnings,
+        "summary": {
+            "detected": len(rows),
+            "rejected": rejected,
+            "warnings": len(warnings),
+            "actions": action_counts,
+        },
     }

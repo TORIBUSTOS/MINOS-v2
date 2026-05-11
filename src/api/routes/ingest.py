@@ -37,6 +37,9 @@ async def ingest_file_endpoint(
 @router.post("/preview")
 async def ingest_preview_endpoint(
     file: UploadFile = File(...),
+    source_name: str = Form(""),
+    portfolio_name: str = Form(""),
+    db: Session = Depends(get_db),
 ):
     ext = "." + file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else ""
     if ext not in SUPPORTED_EXTENSIONS:
@@ -44,6 +47,12 @@ async def ingest_preview_endpoint(
 
     content = await file.read()
     try:
-        return preview_file(content=content, filename=file.filename)
+        return preview_file(
+            content=content,
+            filename=file.filename,
+            source_name=source_name or None,
+            portfolio_name=portfolio_name or None,
+            db=db,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
