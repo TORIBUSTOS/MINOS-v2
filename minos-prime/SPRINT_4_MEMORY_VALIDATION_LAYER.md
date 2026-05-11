@@ -162,6 +162,7 @@ Mostrar al usuario que detecto MINOS antes de guardar una carga, y pedir confirm
 **Tipo:** Backend / memory layer
 **Depende de:** BN-S4-02
 **Archivos esperados:** modelos/migracion si aplica, `src/services/portfolio_engine.py`, nuevo servicio de snapshots, tests.
+**Estado:** IMPLEMENTADO
 
 ### Objetivo
 
@@ -190,10 +191,21 @@ UPLOAD_CONFIRMED | MANUAL_ENTRY | MARKET_REFRESH | MANUAL_SNAPSHOT
 
 ### Criterio de aceptacion
 
-- Se puede crear snapshot desde un portfolio summary consolidado.
-- El snapshot preserva suficiente informacion para diff posterior.
-- No depende de precios vivos para existir.
-- Tests cubren creacion, lectura y snapshot con cartera vacia.
+- [x] Se puede crear snapshot desde un portfolio summary consolidado.
+- [x] El snapshot preserva suficiente informacion para diff posterior.
+- [x] No depende de precios vivos para existir.
+- [x] Tests cubren creacion, lectura y snapshot con cartera vacia.
+
+### Implementado
+
+- Modelo `PortfolioSnapshot` con `snapshot_id`, `trigger`, `created_at`, `total_valuation`, `by_asset`, `by_source`, `by_currency`, `live_market`, `source_load_record_id`, `notes` y `warnings`.
+- Servicio `src/services/portfolio_snapshots.py` para crear, listar, buscar por id y obtener ultimo snapshot.
+- Endpoints:
+  - `POST /api/v1/portfolio/snapshots`
+  - `GET /api/v1/portfolio/snapshots`
+  - `GET /api/v1/portfolio/snapshots/latest`
+  - `GET /api/v1/portfolio/snapshots/{snapshot_id}`
+- El repo actual no tiene carpeta `alembic`; se mantiene el patron MVP existente con `Base.metadata.create_all`.
 
 ---
 
