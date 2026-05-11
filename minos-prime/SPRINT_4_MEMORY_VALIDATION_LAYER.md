@@ -125,6 +125,7 @@ CREATE | UPDATE | IGNORE | REVIEW
 **Tipo:** Frontend / ingestion UX
 **Depende de:** BN-S4-01
 **Archivos esperados:** `frontend/client/app/manual-entry/page.tsx`, hooks/API client, tipos frontend.
+**Estado:** IMPLEMENTADO
 
 ### Objetivo
 
@@ -141,11 +142,18 @@ Mostrar al usuario que detecto MINOS antes de guardar una carga, y pedir confirm
 
 ### Criterio de aceptacion
 
-- Subir archivo no guarda silenciosamente cuando se usa flujo preview.
-- El usuario puede inspeccionar antes de confirmar.
-- Errores/rechazos no se pierden.
-- Mobile mantiene lectura usable.
-- TypeScript pasa.
+- [x] Subir archivo no guarda silenciosamente cuando se usa flujo preview.
+- [x] El usuario puede inspeccionar antes de confirmar.
+- [x] Errores/rechazos no se pierden.
+- [x] Mobile mantiene lectura usable.
+- [x] TypeScript pasa.
+
+### Implementado
+
+- `frontend/client/lib/minos-api.ts` y `frontend/client/hooks/use-minos.ts` mandan `source_name` y `portfolio_name` al preview.
+- `frontend/client/types/minos.ts` refleja el contrato de BN-S4-01: `preview_id`, `expires_at`, `detected_positions`, `rejected_rows`, `summary`, `action_hint` y `confidence`.
+- `/manual-entry` bloquea la confirmacion si no existe preview valido, si el preview no es confirmable, si vencio o si cambio fuente/cartera.
+- La UI muestra conteos por accion (`CREATE`, `UPDATE`, `REVIEW`), filas rechazadas y vista mobile sin tabla horizontal.
 
 ---
 

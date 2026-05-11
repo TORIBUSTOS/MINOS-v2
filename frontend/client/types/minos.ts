@@ -58,31 +58,64 @@ export interface IngestFileResponse {
   warnings: string[]
 }
 
+export type IngestActionHint = "CREATE" | "UPDATE" | "IGNORE" | "REVIEW"
+
 export interface IngestPreviewRow {
   ticker: string
   cantidad: number
+  quantity: number
   moneda: string
+  currency: string
   precio: number | null
+  price: number | null
   fecha: string
   ppc: number | null
   valuacion: number
+  market_value: number
   valor_inicial: number | null
+  initial_value: number | null
   rendimiento: number | null
+  return_value: number | null
   pct_rendimiento: number | null
+  return_pct: number | null
   dpt: number | null
   asset_type: string
+  source_row: number
+  source_section: string | null
+  confidence: number
+  action_hint: IngestActionHint
   complete: boolean
 }
 
+export interface IngestRejectedRow {
+  row_number: number
+  reason: string
+  raw: Record<string, string>
+}
+
+export interface IngestPreviewSummary {
+  detected: number
+  rejected: number
+  warnings: number
+  actions: Record<IngestActionHint, number>
+}
+
 export interface IngestPreviewResponse {
+  preview_id: string
   filename: string
+  source_name: string | null
+  portfolio_name: string | null
   detected_layout: string
   can_confirm: boolean
+  expires_at: string
   missing_columns: string[]
+  detected_positions: IngestPreviewRow[]
   rows: IngestPreviewRow[]
+  rejected_rows: IngestRejectedRow[]
   processed: number
   rejected: number
   warnings: string[]
+  summary: IngestPreviewSummary
 }
 
 // ── Portfolio Engine (BN-005) ─────────────────────────────────────────────────
