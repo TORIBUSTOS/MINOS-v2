@@ -22,6 +22,7 @@ def create_tables():
     import src.models.asset  # noqa: F401
     import src.models.position  # noqa: F401
     import src.models.load_record  # noqa: F401
+    import src.models.portfolio_snapshot  # noqa: F401
     Base.metadata.create_all(engine)
     _ensure_sqlite_position_columns()
 

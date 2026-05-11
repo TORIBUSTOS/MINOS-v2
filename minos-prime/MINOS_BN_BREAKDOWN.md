@@ -459,7 +459,7 @@ Documento de ejecucion: `minos-prime/SPRINT_4_MEMORY_VALIDATION_LAYER.md`
 |----|-------------------|--------|
 | BN-S4-01 | Upload Preview Contract | ✅ |
 | BN-S4-02 | Frontend Preview & Confirm | ✅ |
-| BN-S4-03 | Portfolio Snapshots | ⏳ |
+| BN-S4-03 | Portfolio Snapshots | ✅ |
 | BN-S4-04 | Change Detection | ⏳ |
 | BN-S4-05 | Pending Decisions Panel | ⏳ |
 | BN-S4-06 | Liquidity Minimal Layer | ⏳ |

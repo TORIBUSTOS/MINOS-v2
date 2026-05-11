@@ -16,6 +16,7 @@ from src.models.portfolio import Portfolio
 from src.models.asset import Asset
 from src.models.position import Position
 import src.models.load_record  # noqa: F401 — needed for Base.metadata
+import src.models.portfolio_snapshot  # noqa: F401 — needed for Base.metadata
 
 
 # ── Engine / Session fixtures ─────────────────────────────────────────────────
