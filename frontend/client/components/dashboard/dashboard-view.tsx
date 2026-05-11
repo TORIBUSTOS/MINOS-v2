@@ -305,24 +305,24 @@ function CapitalOverviewPanel({ data }: { data: ConsolidatedPortfolio }) {
   }
 
   return (
-    <SectionPanel delay={0} className="px-5 py-5 sm:px-6 sm:py-6">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <SectionPanel delay={0} className="px-4 py-4 sm:px-5 sm:py-4">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-200/85">Patrimonio consolidado</p>
-            <h1 className="mt-1.5 font-mono text-[clamp(1.85rem,6.8vw,3.85rem)] font-black leading-none text-foreground">
+            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-sky-200/85">Patrimonio consolidado</p>
+            <h1 className="mt-1 font-mono text-[clamp(1.65rem,5.4vw,3.15rem)] font-black leading-none text-foreground">
               {formatARS(data.total_valuation)}
             </h1>
-            <div className="mt-2.5 flex flex-wrap gap-1.5">
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {live ? (
-                <span className={`rounded-md border px-2 py-0.5 text-[10px] font-black ${liveTone(live.daily_pnl_total)}`}>
+                <span className={`rounded-md border px-2 py-0.5 text-[9px] font-black ${liveTone(live.daily_pnl_total)}`}>
                   Día {signedMoney(live.daily_pnl_total)} · {formatPct(live.daily_pnl_pct)}
                 </span>
               ) : null}
-              <span className="rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-black text-sky-400">
+              <span className="rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[9px] font-black text-sky-400">
                 {freshness} · {data.live_market?.freshness_summary?.[freshness] ?? 0} instrumentos
               </span>
-              <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black text-amber-400">
+              <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[9px] font-black text-amber-400">
                 Último dato {live?.last_market_time ? formatPriceTime(live.last_market_time) : "-"}
               </span>
             </div>
@@ -331,7 +331,7 @@ function CapitalOverviewPanel({ data }: { data: ConsolidatedPortfolio }) {
           <button
             type="button"
             onClick={() => setIsEditing((value) => !value)}
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border/60 bg-background/40 px-3 text-xs font-black text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary lg:mt-1"
+            className="inline-flex h-8 items-center justify-center gap-2 rounded-md border border-border/60 bg-background/40 px-2.5 text-[11px] font-black text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary lg:mt-0.5"
             aria-pressed={isEditing}
             title="Configurar KPIs del dashboard"
           >
@@ -340,21 +340,21 @@ function CapitalOverviewPanel({ data }: { data: ConsolidatedPortfolio }) {
           </button>
         </div>
 
-        <div className="grid gap-2">
+        <div className="grid gap-1.5">
           {slots.map((slot, index) => {
             const kpi = kpiMap.get(slot) ?? kpis[0]
             return (
               <div
                 key={`${index}-${slot}`}
-                className="grid min-h-10 grid-cols-1 gap-1.5 rounded-lg border border-border/45 bg-background/35 px-3 py-1.5 sm:grid-cols-[160px_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
+                className="grid min-h-8 grid-cols-1 gap-1 rounded-md border border-border/40 bg-background/30 px-3 py-1 sm:grid-cols-[150px_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
               >
-                <div className="text-[10px] font-black uppercase tracking-[0.12em] text-sky-200/80">
+                <div className="text-[9px] font-black uppercase tracking-[0.12em] text-sky-200/80">
                   {kpi.label}
                 </div>
-                <div className={cn("min-w-0 truncate font-mono text-base font-black", kpiToneClass(kpi.tone))}>
+                <div className={cn("min-w-0 truncate font-mono text-sm font-black", kpiToneClass(kpi.tone))}>
                   {kpi.value}
                 </div>
-                <div className="min-w-0 truncate text-xs font-bold text-muted-foreground sm:text-right">
+                <div className="min-w-0 truncate text-[11px] font-bold text-muted-foreground sm:text-right">
                   {kpi.subtext}
                 </div>
                 {isEditing ? (
