@@ -254,12 +254,16 @@ export function useFilePreview() {
   const [error, setError] = useState<MinosApiError | Error | null>(null)
   const [result, setResult] = useState<IngestPreviewResponse | null>(null)
 
-  const preview = useCallback(async (file: File) => {
+  const preview = useCallback(async (
+    file: File,
+    sourceName: string,
+    portfolioName: string,
+  ) => {
     setLoading(true)
     setError(null)
     setResult(null)
     try {
-      const res = await MinosAPI.previewFile(file)
+      const res = await MinosAPI.previewFile(file, sourceName, portfolioName)
       setResult(res)
       return res
     } catch (e) {

@@ -9,7 +9,9 @@ import {
   ArrowRightLeft,
   ShieldCheck,
   Trash2,
-  Loader2
+  Loader2,
+  AlertTriangle,
+  Clock3
 } from "lucide-react"
 import { GlowOrb, PageHeader, SectionPanel, SectionHeader } from "@/components/dashboard/dashboard-ui"
 import { useCreatePosition, useFilePreview, useFileUpload, usePortfolios } from "@/hooks/use-minos"
@@ -25,7 +27,8 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { motion, AnimatePresence } from "motion/react"
-import { toast } from "sonner" 
+import { toast } from "sonner"
+import type { IngestActionHint } from "@/types/minos"
 
 export default function ManualEntryPage() {
   const { add: addTransaction, loading: adding } = useCreatePosition()
@@ -51,7 +54,6 @@ export default function ManualEntryPage() {
   const [file, setFile] = React.useState<File | null>(null)
   const [isDragging, setIsDragging] = React.useState(false)
   const supportedUploadPattern = /\.(csv|xlsx|xls|pdf|png|jpe?g|webp)$/i
-  const previewRequestRef = React.useRef(0)
   const portfolioOptions = React.useMemo(() => {
     const names = (portfolios ?? []).map((portfolio) => portfolio.name)
     return names.length > 0 ? Array.from(new Set(names)) : ["Principal"]
@@ -111,9 +113,12 @@ export default function ManualEntryPage() {
       toast.error("Por favor, especifica el bróker de origen")
       return
     }
+    if (!canConfirmUpload) {
+      toast.error("Primero necesitás un preview válido y confirmable")
+      return
+    }
     try {
-      const forceConfirm = Boolean(previewResult && previewResult.rows.length > 0 && !previewResult.can_confirm)
-      const result = await uploadFile(file, bulkConfig.source, bulkConfig.portfolio, forceConfirm)
+      const result = await uploadFile(file, bulkConfig.source.trim(), bulkConfig.portfolio, false)
       toast.success(`Archivo procesado: ${result.processed} posiciones, ${result.rejected} rechazadas`)
       setFile(null)
       setPreviewResult(null)
@@ -124,8 +129,12 @@ export default function ManualEntryPage() {
 
   const handleFilePreview = async () => {
     if (!file) return
+    if (!bulkConfig.source.trim()) {
+      toast.error("Indicá el bróker/fuente antes de leer el preview")
+      return
+    }
     try {
-      const result = await previewFile(file)
+      const result = await previewFile(file, bulkConfig.source.trim(), bulkConfig.portfolio)
       if (result.can_confirm) {
         toast.success(`Preview lista: ${result.processed} filas detectadas`)
       } else {
@@ -136,29 +145,63 @@ export default function ManualEntryPage() {
     }
   }
 
-  React.useEffect(() => {
-    if (!file) return
+  const previewRows = React.useMemo(
+    () => previewResult?.detected_positions ?? previewResult?.rows ?? [],
+    [previewResult],
+  )
+  const previewActions = React.useMemo(() => {
+    if (previewResult?.summary?.actions) return previewResult.summary.actions
+    const actions: Record<IngestActionHint, number> = { CREATE: 0, UPDATE: 0, IGNORE: 0, REVIEW: 0 }
+    previewRows.forEach((row) => {
+      const action = row.action_hint ?? (row.complete ? "CREATE" : "REVIEW")
+      actions[action] += 1
+    })
+    return actions
+  }, [previewResult, previewRows])
+  const previewDetected = previewResult?.summary?.detected ?? previewRows.length
+  const previewIdLabel = previewResult?.preview_id ? previewResult.preview_id.slice(0, 8) : "-"
+  const previewExpiresAt = previewResult?.expires_at ? new Date(previewResult.expires_at) : null
+  const previewExpired = previewExpiresAt ? previewExpiresAt.getTime() < Date.now() : false
+  const previewRejectedRows = previewResult?.rejected_rows ?? []
+  const previewMatchesConfig = Boolean(
+    previewResult
+    && (
+      (!previewResult.source_name && !previewResult.portfolio_name)
+      || (
+        previewResult.source_name === bulkConfig.source.trim()
+        && previewResult.portfolio_name === bulkConfig.portfolio
+      )
+    ),
+  )
+  const canConfirmUpload = Boolean(
+    file
+    && previewResult
+    && previewRows.length > 0
+    && previewResult.can_confirm
+    && !previewExpired
+    && previewMatchesConfig,
+  )
 
-    const requestId = previewRequestRef.current + 1
-    previewRequestRef.current = requestId
-    ;(async () => {
-      try {
-        const result = await previewFile(file)
-        if (previewRequestRef.current !== requestId) return
-        if (result.can_confirm) {
-          toast.success(`Preview lista: ${result.processed} filas detectadas`)
-        } else {
-          toast.error("Preview incompleta: faltan datos para consolidar")
-        }
-      } catch (err: any) {
-        if (previewRequestRef.current !== requestId) return
-        toast.error(err.message || "Error al leer la captura")
-      }
-    })()
-  }, [file, previewFile])
+  const formatPreviewMoney = (value: number | null | undefined) => (
+    value == null ? "-" : value.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  )
 
-  const formatPreviewMoney = (value: number | null) => (
-    value === null ? "-" : value.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const getActionLabel = (action: IngestActionHint) => ({
+    CREATE: "Nuevo",
+    UPDATE: "Actualiza",
+    IGNORE: "Ignora",
+    REVIEW: "Revisar",
+  }[action])
+
+  const getActionClass = (action: IngestActionHint) => ({
+    CREATE: "border-fin-gain/35 bg-fin-gain/10 text-fin-gain",
+    UPDATE: "border-primary/35 bg-primary/10 text-primary",
+    IGNORE: "border-muted-foreground/25 bg-muted/20 text-muted-foreground",
+    REVIEW: "border-amber-400/40 bg-amber-400/10 text-amber-300",
+  }[action])
+
+  const getRowAction = (row: { action_hint?: IngestActionHint; complete?: boolean }) => (
+    row.action_hint ?? (row.complete ? "CREATE" : "REVIEW")
   )
 
   const handleTemplateDownload = () => {
@@ -313,13 +356,19 @@ export default function ManualEntryPage() {
                 <Input 
                     placeholder="Ej: Balanz, IOL" 
                     value={bulkConfig.source}
-                    onChange={(e) => setBulkConfig({...bulkConfig, source: e.target.value})}
+                    onChange={(e) => {
+                      setBulkConfig({...bulkConfig, source: e.target.value})
+                      setPreviewResult(null)
+                    }}
                     className="rounded-xl border-border/50 bg-muted/10 h-10 font-bold"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-semibold text-muted-foreground ml-1">Cartera Destino</Label>
-                <Select value={bulkConfig.portfolio} onValueChange={(v) => setBulkConfig({...bulkConfig, portfolio: v})}>
+                <Select value={bulkConfig.portfolio} onValueChange={(v) => {
+                  setBulkConfig({...bulkConfig, portfolio: v})
+                  setPreviewResult(null)
+                }}>
                     <SelectTrigger className="rounded-xl border-border/50 bg-muted/10 h-10 font-bold">
                         <SelectValue />
                     </SelectTrigger>
@@ -389,7 +438,11 @@ export default function ManualEntryPage() {
                     <Button 
                         variant="ghost" 
                         size="sm" 
-                        onClick={(e) => { e.stopPropagation(); setFile(null); }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setFile(null)
+                          setPreviewResult(null)
+                        }}
                         className="text-destructive hover:bg-destructive/10 h-8 rounded-lg mt-2"
                     >
                         <Trash2 className="size-3.5 mr-2" />
@@ -411,7 +464,7 @@ export default function ManualEntryPage() {
                 Descargar Plantilla
               </Button>
               <Button 
-                disabled={!file || previewing}
+                disabled={!file || previewing || !bulkConfig.source.trim()}
                 type="button"
                 variant="outline"
                 className="h-11 flex-[2] rounded-xl border-primary/30 bg-primary/5 font-bold text-primary hover:bg-primary/10 gap-2"
@@ -421,15 +474,13 @@ export default function ManualEntryPage() {
                 {previewing ? "Leyendo Captura..." : "Releer Preview"}
               </Button>
               <Button 
-                disabled={!file || uploading || !previewResult || previewResult.rows.length === 0} 
+                disabled={!canConfirmUpload || uploading}
                 type="button"
-                className={`h-11 flex-[2] rounded-xl font-bold shadow-lg shadow-primary/20 gap-2 ${
-                  previewResult && !previewResult.can_confirm ? "bg-amber-500 text-black hover:bg-amber-400" : ""
-                }`}
+                className="h-11 flex-[2] rounded-xl font-bold shadow-lg shadow-primary/20 gap-2"
                 onClick={handleFileUpload}
               >
                 {uploading ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-                {previewResult?.can_confirm ? "Confirmar Carga" : "Confirmar Bajo Revisión"}
+                {previewResult ? "Confirmar Carga" : "Preview requerido"}
               </Button>
             </div>
 
@@ -443,12 +494,54 @@ export default function ManualEntryPage() {
             {previewResult ? (
               <div className="mt-6 overflow-hidden rounded-xl border border-border/50 bg-background/40">
                 <div className={`border-b px-4 py-3 ${previewResult.can_confirm ? "border-fin-gain/30 bg-fin-gain/5" : "border-destructive/30 bg-destructive/5"}`}>
-                  <p className="text-sm font-bold">
-                    {previewResult.can_confirm ? "Preview lista para confirmar" : "Preview incompleta: no consolidar todavía"}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Layout: {previewResult.detected_layout} · Filas: {previewResult.processed} · Rechazadas: {previewResult.rejected}
-                  </p>
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-sm font-bold">
+                        {canConfirmUpload ? "Preview lista para confirmar" : "Preview requiere atención"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Layout: {previewResult.detected_layout} · ID: {previewIdLabel} · Fuente: {previewResult.source_name ?? bulkConfig.source.trim()} · Cartera: {previewResult.portfolio_name ?? bulkConfig.portfolio}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-[11px] font-black uppercase tracking-wide">
+                      <span className="rounded-full border border-fin-gain/35 bg-fin-gain/10 px-2.5 py-1 text-fin-gain">
+                        {previewActions.CREATE} nuevos
+                      </span>
+                      <span className="rounded-full border border-primary/35 bg-primary/10 px-2.5 py-1 text-primary">
+                        {previewActions.UPDATE} actualiza
+                      </span>
+                      <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 text-amber-300">
+                        {previewActions.REVIEW} revisar
+                      </span>
+                      <span className="rounded-full border border-destructive/35 bg-destructive/10 px-2.5 py-1 text-destructive">
+                        {previewResult.rejected} rechazadas
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+                    <div className="rounded-lg border border-border/40 bg-background/30 px-3 py-2">
+                      Detectadas: <span className="font-bold text-foreground">{previewDetected}</span>
+                    </div>
+                    <div className="rounded-lg border border-border/40 bg-background/30 px-3 py-2">
+                      Confirmación: <span className={previewResult.can_confirm ? "font-bold text-fin-gain" : "font-bold text-destructive"}>
+                        {previewResult.can_confirm ? "habilitada" : "bloqueada"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-lg border border-border/40 bg-background/30 px-3 py-2">
+                      <Clock3 className="size-3.5" />
+                      {previewExpiresAt ? (
+                        previewExpired
+                          ? "Preview vencido"
+                          : `Vence: ${previewExpiresAt.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}`
+                      ) : "Vencimiento no informado"}
+                    </div>
+                  </div>
+                  {!previewMatchesConfig ? (
+                    <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-bold text-amber-300">
+                      <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                      El preview fue generado con otra fuente o cartera. Volvé a leerlo antes de confirmar.
+                    </div>
+                  ) : null}
                   {previewResult.missing_columns.length > 0 ? (
                     <p className="mt-2 text-xs font-bold text-destructive">
                       Faltan columnas: {previewResult.missing_columns.join(", ")}
@@ -463,23 +556,24 @@ export default function ManualEntryPage() {
                   ) : null}
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="min-w-[1040px] w-full table-fixed text-xs">
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="min-w-[1080px] w-full table-fixed text-xs">
                     <colgroup>
+                      <col className="w-[9%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[11%]" />
+                      <col className="w-[11%]" />
+                      <col className="w-[12%]" />
                       <col className="w-[8%]" />
-                      <col className="w-[10%]" />
-                      <col className="w-[10%]" />
-                      <col className="w-[10%]" />
-                      <col className="w-[12%]" />
-                      <col className="w-[12%]" />
-                      <col className="w-[13%]" />
-                      <col className="w-[9%]" />
+                      <col className="w-[8%]" />
                       <col className="w-[7%]" />
-                      <col className="w-[9%]" />
+                      <col className="w-[6%]" />
                     </colgroup>
                     <thead className="bg-muted/40">
                       <tr className="border-b border-border/50">
-                        {["Ticker", "Nominales", "Precio", "PPC", "V. Actual", "V. Inicial", "Rendimiento", "% de R.", "DPT", "OK"].map((header) => (
+                        {["Ticker", "Acción", "Nominales", "Precio", "V. Actual", "V. Inicial", "Rendimiento", "% de R.", "DPT", "Conf.", "OK"].map((header) => (
                           <th key={header} className="px-2 py-2 text-left font-bold text-foreground last:text-center">
                             {header}
                           </th>
@@ -487,25 +581,80 @@ export default function ManualEntryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {previewResult.rows.map((row) => (
-                        <tr key={`${row.asset_type}-${row.ticker}`} className="border-b border-border/40 last:border-b-0">
+                      {previewRows.map((row) => (
+                        <tr key={`${row.source_row}-${row.asset_type}-${row.ticker}`} className="border-b border-border/40 last:border-b-0">
                           <td className="px-2 py-2 font-bold text-slate-300">{row.ticker}</td>
-                          <td className="px-2 py-2 text-right font-mono">{formatPreviewMoney(row.cantidad)}</td>
-                          <td className="px-2 py-2 text-right font-mono">{formatPreviewMoney(row.precio)}</td>
-                          <td className="px-2 py-2 text-right font-mono">{formatPreviewMoney(row.ppc)}</td>
-                          <td className="px-2 py-2 text-right font-mono bg-muted/25">{formatPreviewMoney(row.valuacion)}</td>
-                          <td className="px-2 py-2 text-right font-mono bg-muted/25">{formatPreviewMoney(row.valor_inicial)}</td>
-                          <td className={`px-2 py-2 text-right font-mono bg-muted/25 ${(row.rendimiento ?? 0) < 0 ? "text-fin-loss" : "text-fin-gain"}`}>
-                            {formatPreviewMoney(row.rendimiento)}
+                          <td className="px-2 py-2">
+                            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-black uppercase ${getActionClass(getRowAction(row))}`}>
+                              {getActionLabel(getRowAction(row))}
+                            </span>
                           </td>
-                          <td className="px-2 py-2 text-right font-mono">{formatPreviewMoney(row.pct_rendimiento)}</td>
+                          <td className="px-2 py-2 text-right font-mono">{formatPreviewMoney(row.quantity ?? row.cantidad)}</td>
+                          <td className="px-2 py-2 text-right font-mono">{formatPreviewMoney(row.price ?? row.precio)}</td>
+                          <td className="px-2 py-2 text-right font-mono bg-muted/25">{formatPreviewMoney(row.market_value ?? row.valuacion)}</td>
+                          <td className="px-2 py-2 text-right font-mono bg-muted/25">{formatPreviewMoney(row.initial_value ?? row.valor_inicial)}</td>
+                          <td className={`px-2 py-2 text-right font-mono bg-muted/25 ${(row.rendimiento ?? 0) < 0 ? "text-fin-loss" : "text-fin-gain"}`}>
+                            {formatPreviewMoney(row.return_value ?? row.rendimiento)}
+                          </td>
+                          <td className="px-2 py-2 text-right font-mono">{formatPreviewMoney(row.return_pct ?? row.pct_rendimiento)}</td>
                           <td className="px-2 py-2 text-right font-mono">{formatPreviewMoney(row.dpt)}</td>
+                          <td className="px-2 py-2 text-right font-mono">{Math.round((row.confidence ?? 1) * 100)}%</td>
                           <td className="px-2 py-2 text-center font-bold">{row.complete ? "OK" : "REVISAR"}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+
+                <div className="divide-y divide-border/40 md:hidden">
+                  {previewRows.map((row) => (
+                    <div key={`${row.source_row}-${row.asset_type}-${row.ticker}-mobile`} className="space-y-3 px-4 py-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-base font-black text-foreground">{row.ticker}</p>
+                          <p className="text-xs text-muted-foreground">{row.asset_type} · fila {row.source_row}</p>
+                        </div>
+                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-black uppercase ${getActionClass(getRowAction(row))}`}>
+                          {getActionLabel(getRowAction(row))}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-lg bg-muted/20 p-2">
+                          <p className="text-muted-foreground">Nominales</p>
+                          <p className="font-mono font-bold">{formatPreviewMoney(row.quantity ?? row.cantidad)}</p>
+                        </div>
+                        <div className="rounded-lg bg-muted/20 p-2">
+                          <p className="text-muted-foreground">Valor actual</p>
+                          <p className="font-mono font-bold">{formatPreviewMoney(row.market_value ?? row.valuacion)}</p>
+                        </div>
+                        <div className="rounded-lg bg-muted/20 p-2">
+                          <p className="text-muted-foreground">Rendimiento</p>
+                          <p className={`font-mono font-bold ${(row.return_value ?? 0) < 0 ? "text-fin-loss" : "text-fin-gain"}`}>
+                            {formatPreviewMoney(row.return_value ?? row.rendimiento)}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-muted/20 p-2">
+                          <p className="text-muted-foreground">Confianza</p>
+                          <p className="font-mono font-bold">{Math.round((row.confidence ?? 1) * 100)}%</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {previewRejectedRows.length > 0 ? (
+                  <div className="border-t border-border/50 bg-destructive/5 px-4 py-3">
+                    <p className="text-xs font-black uppercase tracking-wide text-destructive">Filas rechazadas</p>
+                    <div className="mt-2 grid gap-2">
+                      {previewRejectedRows.map((row) => (
+                        <div key={`${row.row_number}-${row.reason}`} className="rounded-lg border border-destructive/25 bg-background/40 px-3 py-2 text-xs">
+                          <span className="font-bold text-foreground">Fila {row.row_number}:</span>{" "}
+                          <span className="text-muted-foreground">{row.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
 

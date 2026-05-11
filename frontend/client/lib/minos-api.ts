@@ -176,9 +176,15 @@ export const MinosAPI = {
   },
 
   /** POST /api/v1/ingest/preview — parse upload without persisting */
-  async previewFile(file: File): Promise<IngestPreviewResponse> {
+  async previewFile(
+    file: File,
+    sourceName: string,
+    portfolioName: string,
+  ): Promise<IngestPreviewResponse> {
     const form = new FormData()
     form.append("file", file)
+    form.append("source_name", sourceName)
+    form.append("portfolio_name", portfolioName)
     const res = await fetch(`${BASE_URL}/api/v1/ingest/preview`, {
       method: "POST",
       body: form,
