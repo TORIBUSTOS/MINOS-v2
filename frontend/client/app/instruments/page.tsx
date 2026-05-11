@@ -69,6 +69,20 @@ type BrokerRow = {
 }
 
 type Density = "comfortable" | "compact" | "dense"
+type InstrumentColumn =
+  | "quantity"
+  | "price"
+  | "dayChange"
+  | "dayImpact"
+  | "avgCost"
+  | "marketValue"
+  | "costBasis"
+  | "pnlAbsolute"
+  | "pnlPercentage"
+  | "portfolioWeight"
+  | "updated"
+  | "valuationStatus"
+  | "marketStatus"
 
 const DENSITY_CFG: Record<Density, {
   rowH: string
@@ -77,9 +91,7 @@ const DENSITY_CFG: Record<Density, {
   totalsH: string
   px: string
   text: string
-  minW: string
-  showImpact: boolean
-  showUpdated: boolean
+  columns: Record<InstrumentColumn, boolean>
 }> = {
   comfortable: {
     rowH: "h-8",
@@ -88,9 +100,21 @@ const DENSITY_CFG: Record<Density, {
     totalsH: "h-10",
     px: "px-4",
     text: "text-sm",
-    minW: "min-w-[1700px]",
-    showImpact: true,
-    showUpdated: true,
+    columns: {
+      quantity: true,
+      price: true,
+      dayChange: true,
+      dayImpact: true,
+      avgCost: true,
+      marketValue: true,
+      costBasis: true,
+      pnlAbsolute: true,
+      pnlPercentage: true,
+      portfolioWeight: true,
+      updated: true,
+      valuationStatus: true,
+      marketStatus: true,
+    },
   },
   compact: {
     rowH: "h-[26px]",
@@ -99,9 +123,21 @@ const DENSITY_CFG: Record<Density, {
     totalsH: "h-8",
     px: "px-3",
     text: "text-xs",
-    minW: "min-w-[1550px]",
-    showImpact: true,
-    showUpdated: true,
+    columns: {
+      quantity: true,
+      price: true,
+      dayChange: true,
+      dayImpact: false,
+      avgCost: false,
+      marketValue: true,
+      costBasis: false,
+      pnlAbsolute: true,
+      pnlPercentage: true,
+      portfolioWeight: true,
+      updated: false,
+      valuationStatus: true,
+      marketStatus: true,
+    },
   },
   dense: {
     rowH: "h-6",
@@ -110,9 +146,21 @@ const DENSITY_CFG: Record<Density, {
     totalsH: "h-7",
     px: "px-2",
     text: "text-xs",
-    minW: "min-w-[1350px]",
-    showImpact: false,
-    showUpdated: false,
+    columns: {
+      quantity: true,
+      price: false,
+      dayChange: true,
+      dayImpact: false,
+      avgCost: false,
+      marketValue: true,
+      costBasis: false,
+      pnlAbsolute: true,
+      pnlPercentage: false,
+      portfolioWeight: true,
+      updated: false,
+      valuationStatus: true,
+      marketStatus: true,
+    },
   },
 }
 
@@ -122,9 +170,9 @@ const DENSITY_LABEL: Record<Density, string> = {
   dense: "Denso",
 }
 
-function getAutoDensity(height: number): Density {
-  if (height > 900) return "comfortable"
-  if (height >= 750) return "compact"
+function getAutoDensity(width: number, height: number): Density {
+  if (width >= 1700 && height > 880) return "comfortable"
+  if (width >= 1080) return "compact"
   return "dense"
 }
 
@@ -196,6 +244,13 @@ function formatDayChange(change: number | null, pct: number | null): string {
   return `${sign}${amount} (${formatPct(pct)})`
 }
 
+function formatDayChangeCompact(change: number | null, pct: number | null): string {
+  if (change === null || pct === null) return "-"
+  const sign = change > 0 ? "+" : change < 0 ? "-" : ""
+  const amount = formatARS(Math.abs(change)).replace(/^\$\s*/u, "").replace(/,00$/u, "")
+  return `${sign}$${amount} (${formatPct(pct)})`
+}
+
 const STATUS_ABBR: Record<string, string> = {
   OK:                           "OK",
   CACHED:                       "OK",
@@ -261,36 +316,32 @@ export default function InstrumentsPage() {
   const [search, setSearch] = React.useState("")
   const [statusFilter, setStatusFilter] = React.useState("all")
 
-  // Auto-detect row density from viewport height, with manual override.
+  // Auto-detect row density from the actual content width, with manual override.
   const [density, setDensity] = React.useState<Density>("comfortable")
   const [densityManual, setDensityManual] = React.useState(false)
 
-  React.useEffect(() => {
-    if (densityManual) return
-    const compute = () => setDensity(getAutoDensity(window.innerHeight))
-    compute()
-    window.addEventListener("resize", compute)
-    return () => window.removeEventListener("resize", compute)
-  }, [densityManual])
-
   const d = DENSITY_CFG[density]
+  const show = d.columns
+  const visibleColumnCount = 2 + Object.values(show).filter(Boolean).length
 
   // Measure from the real DOM position so the table adapts to layout changes.
   const tableWrapperRef = React.useRef<HTMLDivElement>(null)
   const [tableHeight, setTableHeight] = React.useState(400)
 
-  const measureHeight = React.useCallback(() => {
+  const measureLayout = React.useCallback(() => {
     const el = tableWrapperRef.current
     if (!el) return
     const top = el.getBoundingClientRect().top
+    const width = el.clientWidth
     setTableHeight(Math.max(240, window.innerHeight - top - 24))
-  }, [])
+    if (!densityManual) setDensity(getAutoDensity(width, window.innerHeight))
+  }, [densityManual])
 
   React.useEffect(() => {
-    measureHeight()
-    window.addEventListener("resize", measureHeight)
-    return () => window.removeEventListener("resize", measureHeight)
-  }, [measureHeight])
+    measureLayout()
+    window.addEventListener("resize", measureLayout)
+    return () => window.removeEventListener("resize", measureLayout)
+  }, [measureLayout])
 
   React.useEffect(() => {
     const query = new URLSearchParams(window.location.search).get("q")
@@ -321,13 +372,8 @@ export default function InstrumentsPage() {
 
   // Re-measure after data changes alter the table body.
   React.useEffect(() => {
-    measureHeight()
-  }, [measureHeight, sections.length])
-
-  // Keep colspans aligned with conditional columns.
-  const totalCols = 15 - (d.showImpact ? 0 : 1) - (d.showUpdated ? 0 : 1)
-  const totalsLeadSpan = d.showImpact ? 6 : 5
-  const totalsTailSpan = d.showUpdated ? 6 : 5
+    measureLayout()
+  }, [measureLayout, sections.length])
 
   const exportCsv = () => {
     const headers = [
@@ -461,10 +507,10 @@ export default function InstrumentsPage() {
             table={
               <div
                 ref={tableWrapperRef}
-                className="overflow-auto border border-border/50 bg-card/25"
+                className="overflow-y-auto overflow-x-hidden border border-border/50 bg-card/25"
                 style={{ height: tableHeight }}
               >
-                <div className={d.minW}>
+                <div className="w-full min-w-0">
                   {sections.map((section) => {
                     const color = assetColor(section.category)
 
@@ -478,40 +524,42 @@ export default function InstrumentsPage() {
                           <h2 className="text-sm font-bold text-foreground">{section.category} ({section.rows.length})</h2>
                         </div>
 
-                        <Table>
+                        <Table className="table-fixed">
                           <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm shadow-[0_1px_0_0_hsl(var(--border)/0.5)]">
                             <TableRow className={cn("border-border/60 hover:bg-transparent", d.headerH)}>
-                              <TableHead className={cn("w-[120px] text-xs font-bold", d.px)}>Ticker</TableHead>
-                              <TableHead className="w-[120px] text-right text-xs font-bold">Nominales</TableHead>
-                              <TableHead className="w-[140px] text-right text-xs font-bold">Precio</TableHead>
-                              <TableHead className="w-[180px] text-right text-xs font-bold">
-                                <span className="block">Var. Día</span>
-                                <span className="block text-[9px] font-normal text-muted-foreground/70 tracking-wide">intradiario</span>
-                              </TableHead>
-                              {d.showImpact && (
-                                <TableHead className="w-[130px] text-right text-xs font-bold">
-                                  <span className="block">Impacto Día</span>
-                                  <span className="block text-[9px] font-normal text-muted-foreground/70 tracking-wide">en posición</span>
+                              <TableHead className={cn("w-[7%] text-xs font-bold", d.px)}>Ticker</TableHead>
+                              {show.quantity && <TableHead className="w-[6.5%] text-right text-xs font-bold">Nominales</TableHead>}
+                              {show.price && <TableHead className="w-[7%] text-right text-xs font-bold">Precio</TableHead>}
+                              {show.dayChange && (
+                                <TableHead className="w-[8.5%] text-right text-xs font-bold">
+                                  <span className="block truncate">Var. Día</span>
+                                  <span className="block truncate text-[9px] font-normal tracking-wide text-muted-foreground/70">intradiario</span>
                                 </TableHead>
                               )}
-                              <TableHead className="w-[120px] text-right text-xs font-bold">PPC</TableHead>
-                              <TableHead className="w-[150px] text-right text-xs font-bold bg-muted/35">V. Actual</TableHead>
-                              <TableHead className="w-[150px] text-right text-xs font-bold bg-muted/35">V. Inicial</TableHead>
-                              <TableHead className="w-[150px] text-right text-xs font-bold bg-muted/35">Rendimiento</TableHead>
-                              <TableHead className="w-[130px] text-right text-xs font-bold">Variación (%)</TableHead>
-                              <TableHead className="w-[110px] text-right text-xs font-bold">% Cartera</TableHead>
-                              {d.showUpdated && (
-                                <TableHead className="w-[112px] text-right text-xs font-bold">Actualizado</TableHead>
+                              {show.dayImpact && (
+                                <TableHead className="w-[7.5%] text-right text-xs font-bold">
+                                  <span className="block">Impacto Día</span>
+                                  <span className="block truncate text-[9px] font-normal tracking-wide text-muted-foreground/70">en posición</span>
+                                </TableHead>
                               )}
-                              <TableHead className="w-[120px] text-center text-xs font-bold">Estado</TableHead>
-                              <TableHead className="w-[112px] text-center text-xs font-bold">Mercado</TableHead>
-                              <TableHead className="w-[64px] text-center text-xs font-bold" />
+                              {show.avgCost && <TableHead className="w-[6.5%] text-right text-xs font-bold">PPC</TableHead>}
+                              {show.marketValue && <TableHead className="w-[8%] bg-muted/35 text-right text-xs font-bold">V. Actual</TableHead>}
+                              {show.costBasis && <TableHead className="w-[8%] bg-muted/35 text-right text-xs font-bold">V. Inicial</TableHead>}
+                              {show.pnlAbsolute && <TableHead className="w-[8%] bg-muted/35 text-right text-xs font-bold">Rendimiento</TableHead>}
+                              {show.pnlPercentage && <TableHead className="w-[6.5%] text-right text-xs font-bold">Var. %</TableHead>}
+                              {show.portfolioWeight && <TableHead className="w-[6%] text-right text-xs font-bold">% Cart.</TableHead>}
+                              {show.updated && (
+                                <TableHead className="w-[6.5%] text-right text-xs font-bold">Actualizado</TableHead>
+                              )}
+                              {show.valuationStatus && <TableHead className="w-[6.5%] text-center text-xs font-bold">Estado</TableHead>}
+                              {show.marketStatus && <TableHead className="w-[6.5%] text-center text-xs font-bold">Mercado</TableHead>}
+                              <TableHead className="w-[3.5%] text-center text-xs font-bold" />
                             </TableRow>
                           </TableHeader>
 
                           <TableBody>
                             <TableRow className={cn("border-border/50 bg-muted/65 hover:bg-muted/65", d.rowH)}>
-                              <TableCell colSpan={totalCols} className={cn("text-xs font-bold text-foreground/80", d.px)}>Pesos</TableCell>
+                              <TableCell colSpan={visibleColumnCount} className={cn("text-xs font-bold text-foreground/80", d.px)}>Pesos</TableCell>
                             </TableRow>
 
                             {section.rows.map((row) => {
@@ -523,41 +571,46 @@ export default function InstrumentsPage() {
                                   key={row.ticker}
                                   className={cn("border-border/50 hover:bg-muted/35", d.rowH, d.text)}
                                 >
-                                  <TableCell className={d.px}>
+                                  <TableCell className={cn("min-w-0", d.px)}>
                                     <span
-                                      className="font-bold text-slate-300 cursor-default"
+                                      className="block cursor-default truncate font-bold text-slate-300"
                                       title={row.underlying ? `Subyacente: ${row.underlying}` : undefined}
                                     >
                                       {row.ticker}
                                       {row.underlying ? <span className="ml-1 text-[9px] text-muted-foreground/50">◈</span> : null}
                                     </span>
                                   </TableCell>
-                                  <TableCell className="text-right font-mono font-semibold">{formatMaybeNumber(row.quantity)}</TableCell>
-                                  <TableCell className="text-right font-mono text-slate-300">{formatMaybeMoney(row.price)}</TableCell>
-                                  <TableCell className={cn("text-right font-mono font-bold", row.dayChange === null ? "text-muted-foreground" : pnlClassName(row.dayChange))}>
-                                    {formatDayChange(row.dayChange, row.dayChangePct)}
-                                  </TableCell>
-                                  {d.showImpact && (
+                                  {show.quantity && <TableCell className="truncate text-right font-mono font-semibold">{formatMaybeNumber(row.quantity)}</TableCell>}
+                                  {show.price && <TableCell className="truncate text-right font-mono text-slate-300">{formatMaybeMoney(row.price)}</TableCell>}
+                                  {show.dayChange && (
+                                    <TableCell
+                                      className={cn("truncate text-right font-mono font-bold", row.dayChange === null ? "text-muted-foreground" : pnlClassName(row.dayChange))}
+                                      title={formatDayChange(row.dayChange, row.dayChangePct)}
+                                    >
+                                      {formatDayChange(row.dayChange, row.dayChangePct)}
+                                    </TableCell>
+                                  )}
+                                  {show.dayImpact && (
                                     <TableCell className={cn("text-right font-mono font-bold", row.dayImpact === null ? "text-muted-foreground" : pnlClassName(row.dayImpact))}>
                                       {row.dayImpact === null ? "-" : formatARS(row.dayImpact)}
                                     </TableCell>
                                   )}
-                                  <TableCell className="text-right font-mono font-semibold">{formatMaybeMoney(row.avgCost)}</TableCell>
-                                  <TableCell className="text-right font-mono font-bold bg-muted/35">{formatARS(row.marketValue)}</TableCell>
-                                  <TableCell className="text-right font-mono font-semibold bg-muted/35">{formatARS(row.costBasis)}</TableCell>
-                                  <TableCell className={cn("text-right font-mono font-bold bg-muted/35", pnlClassName(row.pnlAbsolute))}>
+                                  {show.avgCost && <TableCell className="truncate text-right font-mono font-semibold">{formatMaybeMoney(row.avgCost)}</TableCell>}
+                                  {show.marketValue && <TableCell className="truncate bg-muted/35 text-right font-mono font-bold">{formatARS(row.marketValue)}</TableCell>}
+                                  {show.costBasis && <TableCell className="truncate bg-muted/35 text-right font-mono font-semibold">{formatARS(row.costBasis)}</TableCell>}
+                                  {show.pnlAbsolute && <TableCell className={cn("truncate bg-muted/35 text-right font-mono font-bold", pnlClassName(row.pnlAbsolute))}>
                                     {formatARS(row.pnlAbsolute)}
-                                  </TableCell>
-                                  <TableCell className={cn("text-right font-mono font-bold", pnlClassName(row.pnlPercentage))}>
+                                  </TableCell>}
+                                  {show.pnlPercentage && <TableCell className={cn("truncate text-right font-mono font-bold", pnlClassName(row.pnlPercentage))}>
                                     {formatPct(row.pnlPercentage)}
-                                  </TableCell>
-                                  <TableCell className="text-right font-mono font-semibold">{formatPctAlloc(row.portfolioWeight)}</TableCell>
-                                  {d.showUpdated && (
+                                  </TableCell>}
+                                  {show.portfolioWeight && <TableCell className="truncate text-right font-mono font-semibold">{formatPctAlloc(row.portfolioWeight)}</TableCell>}
+                                  {show.updated && (
                                     <TableCell className="text-right font-mono text-xs font-semibold text-muted-foreground tabular-nums">
                                       {formatTime(row.priceTime)}
                                     </TableCell>
                                   )}
-                                  <TableCell className="text-center">
+                                  {show.valuationStatus && <TableCell className="text-center">
                                     <div className="flex items-center justify-center gap-1">
                                       <Badge
                                         className={cn("border px-1.5 py-0 text-[9px] font-black tracking-widest", statusClassName(row.valuationStatus))}
@@ -571,15 +624,15 @@ export default function InstrumentsPage() {
                                         </Badge>
                                       ) : null}
                                     </div>
-                                  </TableCell>
-                                  <TableCell className="text-center">
+                                  </TableCell>}
+                                  {show.marketStatus && <TableCell className="text-center">
                                     <Badge
-                                      className={cn("border px-1.5 py-0 text-[9px] font-black tracking-widest", freshnessClassName(row.dataFreshness))}
+                                      className={cn("max-w-full truncate border px-1.5 py-0 text-[9px] font-black tracking-widest", freshnessClassName(row.dataFreshness))}
                                       title={`${row.marketState}${row.lastMarketTime ? ` · ${formatTime(row.lastMarketTime)}` : ""}`}
                                     >
                                       {row.dataFreshness}
                                     </Badge>
-                                  </TableCell>
+                                  </TableCell>}
                                   <TableCell className="text-center">
                                     <Button
                                       variant="ghost"
@@ -596,13 +649,18 @@ export default function InstrumentsPage() {
                             })}
 
                             <TableRow className={cn("border-border/60 bg-background/40 hover:bg-background/40", d.totalsH)}>
-                              <TableCell colSpan={totalsLeadSpan} className={cn("text-right text-xs font-bold text-muted-foreground", d.px)}>Totales</TableCell>
-                              <TableCell className="text-right font-mono text-sm font-bold bg-muted/35 text-slate-300">{formatARS(section.totalMarketValue)}</TableCell>
-                              <TableCell className="text-right font-mono text-sm font-bold bg-muted/35 text-slate-300">{formatARS(section.totalCostBasis)}</TableCell>
-                              <TableCell className={cn("text-right font-mono text-sm font-bold bg-muted/35", pnlClassName(section.totalPnl))}>
-                                {formatARS(section.totalPnl)}
+                              <TableCell colSpan={visibleColumnCount} className={cn("bg-muted/20", d.px)}>
+                                <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-5 gap-y-1 text-xs">
+                                  <span className="font-bold text-muted-foreground">Totales</span>
+                                  <span className="font-mono font-bold text-slate-300">Actual {formatARS(section.totalMarketValue)}</span>
+                                  {density !== "dense" ? (
+                                    <span className="font-mono font-bold text-slate-300">Inicial {formatARS(section.totalCostBasis)}</span>
+                                  ) : null}
+                                  <span className={cn("font-mono font-bold", pnlClassName(section.totalPnl))}>
+                                    P/L {formatARS(section.totalPnl)}
+                                  </span>
+                                </div>
                               </TableCell>
-                              <TableCell colSpan={totalsTailSpan} />
                             </TableRow>
                           </TableBody>
                         </Table>
@@ -672,8 +730,9 @@ export default function InstrumentsPage() {
                           <FinancialMetric label="Precio" value={formatMaybeMoney(row.price)} />
                           <FinancialMetric
                             label="Var. Día"
-                            value={formatDayChange(row.dayChange, row.dayChangePct)}
+                            value={formatDayChangeCompact(row.dayChange, row.dayChangePct)}
                             tone={row.dayChange === null ? undefined : row.dayChange >= 0 ? "gain" : "loss"}
+                            className="text-[12px]"
                           />
                           <FinancialMetric label="V. Actual" value={formatARS(row.marketValue)} />
                           <FinancialMetric label="Rendimiento" value={formatARS(row.pnlAbsolute)} tone={row.pnlAbsolute < 0 ? "loss" : "gain"} />
