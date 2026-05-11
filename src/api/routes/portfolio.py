@@ -6,6 +6,7 @@ from src.core.database import get_db
 from src.models.portfolio import Portfolio
 from src.models.position import Position
 from src.services.portfolio_engine import consolidate
+from src.services.portfolio_changes import compare_latest_snapshots, compare_snapshot_ids
 from src.services.portfolio_snapshots import (
     create_portfolio_snapshot,
     get_latest_portfolio_snapshot,
@@ -83,6 +84,29 @@ def latest_portfolio_snapshot(db: Session = Depends(get_db)):
     if snapshot is None:
         raise HTTPException(status_code=404, detail="No portfolio snapshots found")
     return snapshot_to_dict(snapshot)
+
+
+@router.get("/portfolio/snapshots/diff/latest")
+def latest_portfolio_snapshot_diff(db: Session = Depends(get_db)):
+    diff = compare_latest_snapshots(db)
+    if diff is None:
+        raise HTTPException(
+            status_code=404,
+            detail="At least two portfolio snapshots are required",
+        )
+    return diff
+
+
+@router.get("/portfolio/snapshots/diff")
+def portfolio_snapshot_diff(
+    from_snapshot_id: str,
+    to_snapshot_id: str,
+    db: Session = Depends(get_db),
+):
+    diff = compare_snapshot_ids(db, from_snapshot_id, to_snapshot_id)
+    if diff is None:
+        raise HTTPException(status_code=404, detail="Portfolio snapshot not found")
+    return diff
 
 
 @router.get("/portfolio/snapshots/{snapshot_id}")
