@@ -58,8 +58,8 @@ type DashboardKpi = {
   tone?: "default" | "gain" | "loss" | "primary" | "warning"
 }
 
-const DASHBOARD_KPI_STORAGE_KEY = "minos.dashboard.kpiSlots.v1"
-const DEFAULT_DASHBOARD_KPIS: DashboardKpiId[] = ["total_pnl", "top_exposure", "daily_balance", "last_market_time"]
+const DASHBOARD_KPI_STORAGE_KEY = "minos.dashboard.kpiSlots.v2"
+const DEFAULT_DASHBOARD_KPIS: DashboardKpiId[] = ["total_pnl"]
 
 function signedMoney(value: number): string {
   const sign = value > 0 ? "+" : value < 0 ? "-" : ""
@@ -283,7 +283,7 @@ function loadKpiSlots(): DashboardKpiId[] {
   if (typeof window === "undefined") return DEFAULT_DASHBOARD_KPIS
   try {
     const parsed = JSON.parse(window.localStorage.getItem(DASHBOARD_KPI_STORAGE_KEY) ?? "null")
-    if (Array.isArray(parsed) && parsed.length === 4) return parsed as DashboardKpiId[]
+    if (Array.isArray(parsed) && parsed.length > 0 && parsed.length <= 4) return parsed as DashboardKpiId[]
   } catch {
     return DEFAULT_DASHBOARD_KPIS
   }
@@ -309,12 +309,12 @@ function CapitalOverviewPanel({ data }: { data: ConsolidatedPortfolio }) {
   }
 
   return (
-    <SectionPanel delay={0} className="px-4 py-4 sm:px-5 sm:py-4">
-      <div className="flex flex-col gap-3">
+    <SectionPanel delay={0} className="px-4 py-3.5 sm:px-5 sm:py-4">
+      <div className="flex flex-col gap-2.5">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <p className="text-[9px] font-black uppercase tracking-[0.14em] text-sky-200/85">Patrimonio consolidado</p>
-            <h1 className="mt-1 font-mono text-[clamp(1.65rem,5.4vw,3.15rem)] font-black leading-none text-foreground">
+            <h1 className="mt-1 font-mono text-[clamp(1.45rem,4.7vw,2.65rem)] font-black leading-none text-foreground">
               {formatARS(data.total_valuation)}
             </h1>
           </div>
