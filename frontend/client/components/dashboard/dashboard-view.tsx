@@ -3,17 +3,14 @@
 import React from "react"
 import { motion } from "motion/react"
 import {
-  DollarSign,
   Building2,
-  Globe,
-  LayoutGrid,
   BarChart2,
   PieChart,
   Activity,
-  Clock
+  Clock,
+  Settings2
 } from "lucide-react"
 import {
-  KpiCard,
   SectionPanel,
   SectionHeader,
   GlowOrb,
@@ -25,6 +22,7 @@ import { MarketWidget } from "./market-widget"
 import { usePortfolioSummary, usePortfolioStatus } from "@/hooks/use-minos"
 import type { ConsolidatedPortfolio, PortfolioStatusValue } from "@/types/minos"
 import { formatARS, formatARSCompact, formatPct, formatPctAlloc, formatPriceTime } from "@/lib/minos-formatters"
+import { cn } from "@/lib/utils"
 import {
   BarChart,
   Bar,
@@ -37,6 +35,158 @@ import {
 } from "recharts"
 import { ShieldAlert, TrendingUp, Minus, ArrowRightLeft, DollarSign as DollarCircle, Lightbulb } from "lucide-react"
 import { useReallocation } from "@/hooks/use-minos"
+
+type DashboardKpiId =
+  | "total_pnl"
+  | "daily_pnl"
+  | "top_exposure"
+  | "daily_balance"
+  | "market_freshness"
+  | "last_market_time"
+  | "instrument_count"
+  | "source_count"
+  | "usd_exposure"
+  | "unavailable_count"
+  | "top_source"
+  | "biggest_gain"
+  | "biggest_loss"
+
+type DashboardKpi = {
+  id: DashboardKpiId
+  label: string
+  value: string
+  subtext: string
+  tone?: "default" | "gain" | "loss" | "primary" | "warning"
+}
+
+const DASHBOARD_KPI_STORAGE_KEY = "minos.dashboard.kpiSlots.v1"
+const DEFAULT_DASHBOARD_KPIS: DashboardKpiId[] = ["total_pnl", "top_exposure", "daily_balance", "market_freshness"]
+
+function signedMoney(value: number): string {
+  const sign = value > 0 ? "+" : value < 0 ? "-" : ""
+  return `${sign}${formatARS(Math.abs(value))}`
+}
+
+function toneFromNumber(value: number | null | undefined): DashboardKpi["tone"] {
+  if (value == null) return "default"
+  if (value > 0) return "gain"
+  if (value < 0) return "loss"
+  return "default"
+}
+
+function dominantFreshness(data: ConsolidatedPortfolio): string {
+  return Object.entries(data.live_market?.freshness_summary ?? {})
+    .sort((a, b) => b[1] - a[1])[0]?.[0] ?? "UNAVAILABLE"
+}
+
+function buildDashboardKpis(data: ConsolidatedPortfolio): DashboardKpi[] {
+  const totalPnl = data.by_asset.reduce((total, asset) => total + (asset.pnl_absolute ?? 0), 0)
+  const totalPnlPct = data.total_valuation > totalPnl && data.total_valuation !== 0
+    ? (totalPnl / (data.total_valuation - totalPnl)) * 100
+    : 0
+  const topAsset = [...data.by_asset].sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0))[0]
+  const topSource = [...data.by_source].sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0))[0]
+  const biggestGain = [...data.by_asset].sort((a, b) => (b.day_change_pct ?? -Infinity) - (a.day_change_pct ?? -Infinity))[0]
+  const biggestLoss = [...data.by_asset].sort((a, b) => (a.day_change_pct ?? Infinity) - (b.day_change_pct ?? Infinity))[0]
+  const live = data.live_market
+  const freshness = dominantFreshness(data)
+  const freshnessCount = live?.freshness_summary?.[freshness] ?? 0
+  const usd = data.by_currency.find((currency) => currency.currency === "USD")
+
+  return [
+    {
+      id: "total_pnl",
+      label: "Resultado total",
+      value: signedMoney(totalPnl),
+      subtext: `${formatPct(totalPnlPct)} acumulado`,
+      tone: toneFromNumber(totalPnl),
+    },
+    {
+      id: "daily_pnl",
+      label: "Impacto día",
+      value: live ? signedMoney(live.daily_pnl_total) : "-",
+      subtext: live ? formatPct(live.daily_pnl_pct) : "sin dato diario",
+      tone: toneFromNumber(live?.daily_pnl_total),
+    },
+    {
+      id: "top_exposure",
+      label: "Exposición principal",
+      value: topAsset ? `${topAsset.ticker} ${formatPctAlloc(topAsset.pct)}` : "-",
+      subtext: "mayor concentración",
+      tone: "default",
+    },
+    {
+      id: "daily_balance",
+      label: "Balance diario",
+      value: live ? `${live.positive_count}+ ${live.negative_count}-` : "-",
+      subtext: `${live?.unchanged_count ?? 0} sin cambio`,
+      tone: live && live.negative_count > live.positive_count ? "loss" : "gain",
+    },
+    {
+      id: "market_freshness",
+      label: "Frescura mercado",
+      value: `${freshness} · ${freshnessCount}`,
+      subtext: "instrumentos dominantes",
+      tone: freshness === "LIVE" ? "gain" : freshness === "STALE" ? "warning" : freshness === "CACHE" ? "primary" : "default",
+    },
+    {
+      id: "last_market_time",
+      label: "Último dato",
+      value: live?.last_market_time ? formatPriceTime(live.last_market_time) : "-",
+      subtext: "timestamp de mercado",
+      tone: "default",
+    },
+    {
+      id: "instrument_count",
+      label: "Instrumentos",
+      value: String(data.by_asset.length),
+      subtext: "activos en cartera",
+      tone: "default",
+    },
+    {
+      id: "source_count",
+      label: "Fuentes",
+      value: String(data.by_source.length),
+      subtext: "brokers / orígenes",
+      tone: "default",
+    },
+    {
+      id: "usd_exposure",
+      label: "Exposición USD",
+      value: formatPctAlloc(usd?.pct ?? 0),
+      subtext: usd ? formatARS(usd.valuation) : "sin USD",
+      tone: "primary",
+    },
+    {
+      id: "unavailable_count",
+      label: "Sin precio live",
+      value: String(live?.unavailable_count ?? 0),
+      subtext: "instrumentos unavailable",
+      tone: (live?.unavailable_count ?? 0) > 0 ? "warning" : "gain",
+    },
+    {
+      id: "top_source",
+      label: "Fuente principal",
+      value: topSource ? `${topSource.source} ${formatPctAlloc(topSource.pct)}` : "-",
+      subtext: topSource ? formatARS(topSource.valuation) : "sin fuentes",
+      tone: "default",
+    },
+    {
+      id: "biggest_gain",
+      label: "Mayor suba diaria",
+      value: biggestGain ? `${biggestGain.ticker} ${formatPct(biggestGain.day_change_pct ?? 0)}` : "-",
+      subtext: biggestGain?.day_impact == null ? "sin impacto" : signedMoney(biggestGain.day_impact),
+      tone: "gain",
+    },
+    {
+      id: "biggest_loss",
+      label: "Mayor caída diaria",
+      value: biggestLoss ? `${biggestLoss.ticker} ${formatPct(biggestLoss.day_change_pct ?? 0)}` : "-",
+      subtext: biggestLoss?.day_impact == null ? "sin impacto" : signedMoney(biggestLoss.day_impact),
+      tone: "loss",
+    },
+  ]
+}
 
 // ── Intelligence Status Banner ────────────────────────────────────────────────
 
@@ -112,6 +262,121 @@ function IntelligenceBanner() {
         <span className="text-emerald-400">{status.buy_count} BUY</span>
       </div>
     </motion.div>
+  )
+}
+
+function kpiToneClass(tone: DashboardKpi["tone"]): string {
+  if (tone === "gain") return "text-emerald-400"
+  if (tone === "loss") return "text-rose-400"
+  if (tone === "primary") return "text-sky-400"
+  if (tone === "warning") return "text-amber-400"
+  return "text-foreground"
+}
+
+function loadKpiSlots(): DashboardKpiId[] {
+  if (typeof window === "undefined") return DEFAULT_DASHBOARD_KPIS
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(DASHBOARD_KPI_STORAGE_KEY) ?? "null")
+    if (Array.isArray(parsed) && parsed.length === 4) return parsed as DashboardKpiId[]
+  } catch {
+    return DEFAULT_DASHBOARD_KPIS
+  }
+  return DEFAULT_DASHBOARD_KPIS
+}
+
+function CapitalOverviewPanel({ data }: { data: ConsolidatedPortfolio }) {
+  const [isEditing, setIsEditing] = React.useState(false)
+  const [slots, setSlots] = React.useState<DashboardKpiId[]>(DEFAULT_DASHBOARD_KPIS)
+  const kpis = React.useMemo(() => buildDashboardKpis(data), [data])
+  const kpiMap = React.useMemo(() => new Map(kpis.map((kpi) => [kpi.id, kpi])), [kpis])
+  const live = data.live_market
+  const freshness = dominantFreshness(data)
+
+  React.useEffect(() => {
+    setSlots(loadKpiSlots())
+  }, [])
+
+  React.useEffect(() => {
+    window.localStorage.setItem(DASHBOARD_KPI_STORAGE_KEY, JSON.stringify(slots))
+  }, [slots])
+
+  const updateSlot = (index: number, value: DashboardKpiId) => {
+    setSlots((current) => current.map((slot, slotIndex) => slotIndex === index ? value : slot))
+  }
+
+  return (
+    <SectionPanel delay={0}>
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-200/85">Patrimonio consolidado</p>
+            <h1 className="mt-2 font-mono text-[clamp(1.9rem,8.5vw,4.5rem)] font-black leading-none text-foreground">
+              {formatARS(data.total_valuation)}
+            </h1>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {live ? (
+                <span className={`rounded-md border px-2 py-1 text-[11px] font-black ${liveTone(live.daily_pnl_total)}`}>
+                  Día {signedMoney(live.daily_pnl_total)} · {formatPct(live.daily_pnl_pct)}
+                </span>
+              ) : null}
+              <span className="rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-1 text-[11px] font-black text-sky-400">
+                {freshness} · {data.live_market?.freshness_summary?.[freshness] ?? 0} instrumentos
+              </span>
+              <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-[11px] font-black text-amber-400">
+                Último dato {live?.last_market_time ? formatPriceTime(live.last_market_time) : "-"}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsEditing((value) => !value)}
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border/60 bg-background/40 px-3 text-xs font-black text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary lg:mt-1"
+            aria-pressed={isEditing}
+            title="Configurar KPIs del dashboard"
+          >
+            <Settings2 className="size-3.5" />
+            KPIs
+          </button>
+        </div>
+
+        <div className="grid gap-2">
+          {slots.map((slot, index) => {
+            const kpi = kpiMap.get(slot) ?? kpis[0]
+            return (
+              <div
+                key={`${index}-${slot}`}
+                className="grid min-h-12 grid-cols-1 gap-2 rounded-lg border border-border/45 bg-background/35 px-3 py-2 sm:grid-cols-[170px_minmax(0,1fr)_auto] sm:items-center sm:gap-4"
+              >
+                <div className="text-[10px] font-black uppercase tracking-[0.12em] text-sky-200/80">
+                  {kpi.label}
+                </div>
+                <div className={cn("min-w-0 truncate font-mono text-lg font-black", kpiToneClass(kpi.tone))}>
+                  {kpi.value}
+                </div>
+                <div className="min-w-0 truncate text-xs font-bold text-muted-foreground sm:text-right">
+                  {kpi.subtext}
+                </div>
+                {isEditing ? (
+                  <div className="sm:col-span-3">
+                    <select
+                      value={slot}
+                      onChange={(event) => updateSlot(index, event.target.value as DashboardKpiId)}
+                      className="h-8 w-full rounded-md border border-border/60 bg-background px-2 text-xs font-bold text-foreground outline-none focus:border-primary/60"
+                      aria-label={`KPI slot ${index + 1}`}
+                    >
+                      {kpis.map((option) => (
+                        <option key={option.id} value={option.id}>{option.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </SectionPanel>
   )
 }
 
@@ -285,36 +550,7 @@ export function DashboardView() {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-up">
-      {/* KPI Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          label="Patrimonio Total"
-          value={formatARSCompact(data.total_valuation)}
-          delay={0}
-          icon={DollarSign}
-        />
-        <KpiCard 
-          label="Instrumentos" 
-          value={data.by_asset.length.toString()} 
-          delay={0.1} 
-          icon={LayoutGrid} 
-          subtext="activos en cartera"
-        />
-        <KpiCard 
-          label="Fuentes" 
-          value={data.by_source.length.toString()} 
-          delay={0.2} 
-          icon={Building2} 
-          subtext="brokers conectados"
-        />
-        <KpiCard 
-          label="Exposición USD" 
-          value={formatPctAlloc(data.by_currency.find(c => c.currency === "USD")?.pct || 0)} 
-          delay={0.3} 
-          icon={Globe} 
-          subtext="del total invertido"
-        />
-      </div>
+      <CapitalOverviewPanel data={data} />
 
       {/* Intelligence Status Banner */}
       <IntelligenceBanner />
