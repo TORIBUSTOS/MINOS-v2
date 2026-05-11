@@ -444,3 +444,24 @@ Documento de ejecucion: `minos-prime/SPRINT_3_LIVE_MARKET_LAYER.md`
 **Resultado:** Sprint 3 completado. MINOS expone frescura de mercado `LIVE/CACHE/STALE/UNAVAILABLE`, impacto diario por instrumento, resumen agregado `live_market`, badge de mercado en Instrumentos y panel de Sesion Live con heatmap diario en Dashboard.
 
 **Verificacion:** `216 passed`, TypeScript OK, Next build OK, validacion visual Playwright desktop/mobile en `/` y `/instruments`.
+
+---
+
+## SPRINT 4 — MEMORY & VALIDATION LAYER 🟡
+
+**Estado:** EN PROGRESO
+
+**Objetivo:** Convertir MINOS de una terminal de snapshot/live session en una terminal con memoria operativa: validar antes de guardar, recordar fotos patrimoniales y explicar que cambio desde la ultima carga.
+
+Documento de ejecucion: `minos-prime/SPRINT_4_MEMORY_VALIDATION_LAYER.md`
+
+| BN | Descripción corta | Estado |
+|----|-------------------|--------|
+| BN-S4-01 | Upload Preview Contract | ✅ |
+| BN-S4-02 | Frontend Preview & Confirm | ⏳ |
+| BN-S4-03 | Portfolio Snapshots | ⏳ |
+| BN-S4-04 | Change Detection | ⏳ |
+| BN-S4-05 | Pending Decisions Panel | ⏳ |
+| BN-S4-06 | Liquidity Minimal Layer | ⏳ |
+
+**Resultado esperado:** MINOS debe poder mostrar que detecto antes de guardar una carga, confirmar persistencia de forma explicita, guardar snapshots patrimoniales, comparar contra el snapshot anterior y mostrar decisiones pendientes sin inventar datos.
