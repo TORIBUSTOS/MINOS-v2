@@ -706,24 +706,40 @@ def preview_file(
             })
             continue
         ticker = str(row_dict["ticker"]).strip().upper()
+        cantidad = float(row_dict["cantidad"])
+        moneda = str(row_dict.get("moneda", "ARS")).strip().upper()
+        precio = _safe_float(row_dict.get("precio"))
+        valuacion = float(row_dict["valuacion"])
+        valor_inicial = _safe_float(row_dict.get("valor_inicial"))
+        rendimiento = _safe_float(row_dict.get("rendimiento"))
+        pct_rendimiento = _safe_float(row_dict.get("pct_rendimiento"))
+        dpt = _safe_float(row_dict.get("dpt"))
+        asset_type = _normalise_asset_type(row_dict.get("asset_type"))
         complete = _is_complete_balanz_row(row_dict) if "asset_type" in df.columns else True
         action_hint = "REVIEW" if not complete else "UPDATE" if ticker in existing_tickers else "CREATE"
         rows.append(
             {
                 "ticker": ticker,
-                "cantidad": float(row_dict["cantidad"]),
-                "moneda": str(row_dict.get("moneda", "ARS")).strip().upper(),
-                "precio": _safe_float(row_dict.get("precio")),
+                "cantidad": cantidad,
+                "quantity": cantidad,
+                "moneda": moneda,
+                "currency": moneda,
+                "precio": precio,
+                "price": precio,
                 "fecha": str(pd.to_datetime(row_dict.get("fecha", date.today())).date()),
                 "ppc": _safe_float(row_dict.get("ppc")),
-                "valuacion": float(row_dict["valuacion"]),
-                "valor_inicial": _safe_float(row_dict.get("valor_inicial")),
-                "rendimiento": _safe_float(row_dict.get("rendimiento")),
-                "pct_rendimiento": _safe_float(row_dict.get("pct_rendimiento")),
-                "dpt": _safe_float(row_dict.get("dpt")),
-                "asset_type": _normalise_asset_type(row_dict.get("asset_type")),
+                "valuacion": valuacion,
+                "market_value": valuacion,
+                "valor_inicial": valor_inicial,
+                "initial_value": valor_inicial,
+                "rendimiento": rendimiento,
+                "return_value": rendimiento,
+                "pct_rendimiento": pct_rendimiento,
+                "return_pct": pct_rendimiento,
+                "dpt": dpt,
+                "asset_type": asset_type,
                 "source_row": i + 2,
-                "source_section": _normalise_asset_type(row_dict.get("asset_type")) if "asset_type" in df.columns else None,
+                "source_section": asset_type if "asset_type" in df.columns else None,
                 "confidence": 1.0 if complete else 0.55,
                 "action_hint": action_hint,
                 "complete": complete,

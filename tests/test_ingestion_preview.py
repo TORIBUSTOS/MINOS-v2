@@ -29,6 +29,9 @@ def test_ingest_preview_contract_does_not_persist(client, db_session):
     assert body["summary"]["actions"]["CREATE"] == 8
     assert body["detected_positions"][0]["action_hint"] == "CREATE"
     assert body["detected_positions"][0]["confidence"] == 1.0
+    assert body["detected_positions"][0]["quantity"] == body["detected_positions"][0]["cantidad"]
+    assert body["detected_positions"][0]["currency"] == body["detected_positions"][0]["moneda"]
+    assert body["detected_positions"][0]["market_value"] == body["detected_positions"][0]["valuacion"]
     assert db_session.query(Position).count() == 0
 
 

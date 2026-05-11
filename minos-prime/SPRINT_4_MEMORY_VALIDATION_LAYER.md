@@ -114,6 +114,7 @@ CREATE | UPDATE | IGNORE | REVIEW
 
 - `POST /api/v1/ingest/preview` acepta `source_name` y `portfolio_name` opcionales.
 - El contrato expone `preview_id`, `expires_at`, `detected_positions`, `rejected_rows`, `summary`, `action_hint`, `confidence` y `can_confirm`.
+- Cada posicion conserva campos legacy (`cantidad`, `moneda`, `valuacion`) y agrega aliases de contrato (`quantity`, `currency`, `market_value`).
 - Las posiciones existentes del mismo source/portfolio se marcan como `UPDATE`; las nuevas como `CREATE`; las incompletas como `REVIEW`.
 - El preview no persiste posiciones ni registros de carga.
 
