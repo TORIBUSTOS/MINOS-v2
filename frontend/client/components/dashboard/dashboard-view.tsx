@@ -305,24 +305,24 @@ function CapitalOverviewPanel({ data }: { data: ConsolidatedPortfolio }) {
   }
 
   return (
-    <SectionPanel delay={0}>
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <SectionPanel delay={0} className="px-5 py-5 sm:px-6 sm:py-6">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-200/85">Patrimonio consolidado</p>
-            <h1 className="mt-2 font-mono text-[clamp(1.9rem,8.5vw,4.5rem)] font-black leading-none text-foreground">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-200/85">Patrimonio consolidado</p>
+            <h1 className="mt-1.5 font-mono text-[clamp(1.85rem,6.8vw,3.85rem)] font-black leading-none text-foreground">
               {formatARS(data.total_valuation)}
             </h1>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
               {live ? (
-                <span className={`rounded-md border px-2 py-1 text-[11px] font-black ${liveTone(live.daily_pnl_total)}`}>
+                <span className={`rounded-md border px-2 py-0.5 text-[10px] font-black ${liveTone(live.daily_pnl_total)}`}>
                   Día {signedMoney(live.daily_pnl_total)} · {formatPct(live.daily_pnl_pct)}
                 </span>
               ) : null}
-              <span className="rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-1 text-[11px] font-black text-sky-400">
+              <span className="rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-black text-sky-400">
                 {freshness} · {data.live_market?.freshness_summary?.[freshness] ?? 0} instrumentos
               </span>
-              <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-[11px] font-black text-amber-400">
+              <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black text-amber-400">
                 Último dato {live?.last_market_time ? formatPriceTime(live.last_market_time) : "-"}
               </span>
             </div>
@@ -346,12 +346,12 @@ function CapitalOverviewPanel({ data }: { data: ConsolidatedPortfolio }) {
             return (
               <div
                 key={`${index}-${slot}`}
-                className="grid min-h-12 grid-cols-1 gap-2 rounded-lg border border-border/45 bg-background/35 px-3 py-2 sm:grid-cols-[170px_minmax(0,1fr)_auto] sm:items-center sm:gap-4"
+                className="grid min-h-10 grid-cols-1 gap-1.5 rounded-lg border border-border/45 bg-background/35 px-3 py-1.5 sm:grid-cols-[160px_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
               >
                 <div className="text-[10px] font-black uppercase tracking-[0.12em] text-sky-200/80">
                   {kpi.label}
                 </div>
-                <div className={cn("min-w-0 truncate font-mono text-lg font-black", kpiToneClass(kpi.tone))}>
+                <div className={cn("min-w-0 truncate font-mono text-base font-black", kpiToneClass(kpi.tone))}>
                   {kpi.value}
                 </div>
                 <div className="min-w-0 truncate text-xs font-bold text-muted-foreground sm:text-right">
