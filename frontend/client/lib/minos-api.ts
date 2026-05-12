@@ -18,6 +18,7 @@ import type {
   AllPricesResponse,
   TickerSignal,
   PortfolioStatus,
+  PortfolioSnapshotDiff,
   ReallocationSuggestion,
   ResetUploadedDataResponse,
 } from "@/types/minos"
@@ -109,6 +110,16 @@ export const MinosAPI = {
   /** GET /api/v1/portfolios — list portfolios with position counts */
   async listPortfolios(): Promise<Portfolio[]> {
     return request<Portfolio[]>("/api/v1/portfolios")
+  },
+
+  /** GET /api/v1/portfolio/snapshots/diff/latest — compare last two snapshots */
+  async getLatestPortfolioSnapshotDiff(): Promise<PortfolioSnapshotDiff | null> {
+    try {
+      return await request<PortfolioSnapshotDiff>("/api/v1/portfolio/snapshots/diff/latest")
+    } catch (error) {
+      if (error instanceof MinosApiError && error.status === 404) return null
+      throw error
+    }
   },
 
   // ── Tickers ────────────────────────────────────────────────────────────────
