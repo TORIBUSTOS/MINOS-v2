@@ -63,6 +63,7 @@ type DashboardKpiId =
   | "top_source"
   | "biggest_gain"
   | "biggest_loss"
+  | "liquidity"
 
 type DashboardKpi = {
   id: DashboardKpiId
@@ -176,6 +177,15 @@ function buildDashboardKpis(data: ConsolidatedPortfolio): DashboardKpi[] {
       value: formatPctAlloc(usd?.pct ?? 0),
       subtext: usd ? formatARS(usd.valuation) : "sin USD",
       tone: "primary",
+    },
+    {
+      id: "liquidity",
+      label: "Liquidez informada",
+      value: data.liquidity_summary?.is_informed ? formatARS(data.liquidity_summary.total) : "No informado",
+      subtext: data.liquidity_summary?.is_informed
+        ? `${formatPctAlloc(data.liquidity_summary.pct)} del patrimonio`
+        : "sin dato de fuente",
+      tone: data.liquidity_summary?.is_informed ? "primary" : "default",
     },
     {
       id: "unavailable_count",
@@ -625,6 +635,86 @@ function CapitalOverviewPanel({ data }: { data: ConsolidatedPortfolio }) {
 
 // ── Reallocation Panel ────────────────────────────────────────────────────────
 
+function liquidityKindLabel(kind: string | null | undefined): string {
+  if (kind === "CASH") return "Caja"
+  if (kind === "MONEY_MARKET") return "Money market"
+  return "Liquidez"
+}
+
+function LiquidityPanel({
+  portfolio,
+  reallocation,
+}: {
+  portfolio: ConsolidatedPortfolio
+  reallocation: ReallocationSuggestion | null
+}) {
+  const liquidity = portfolio.liquidity_summary
+  const isInformed = liquidity?.is_informed === true
+  const releasable = reallocation?.releasable_capital ?? 0
+  const available = reallocation?.available_capital ?? (isInformed ? liquidity.total + releasable : releasable)
+  const hasPotential = available > 0
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.45 }}
+    >
+      <SectionPanel>
+        <SectionHeader title="Liquidez" subtitle="Caja y capital disponible informado" />
+
+        <div className="mt-4 space-y-3">
+          <div className="rounded-xl border border-border/40 bg-background/35 px-4 py-3">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+              Liquidez informada
+            </p>
+            <p className={cn(
+              "mt-1 font-mono text-lg font-black",
+              isInformed ? "text-sky-400" : "text-muted-foreground",
+            )}>
+              {isInformed ? formatARS(liquidity.total) : "No informado"}
+            </p>
+            <p className="text-[11px] font-bold text-muted-foreground">
+              {isInformed ? `${formatPctAlloc(liquidity.pct)} del patrimonio` : "la fuente no informó caja confiable"}
+            </p>
+          </div>
+
+          {isInformed ? (
+            <div className="space-y-2">
+              {liquidity.items.slice(0, 3).map((item) => (
+                <div key={item.ticker} className="flex items-center justify-between gap-3 rounded-lg border border-border/30 bg-muted/10 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-black text-foreground">{item.ticker}</p>
+                    <p className="text-[10px] font-bold text-muted-foreground">{liquidityKindLabel(item.liquidity_kind)}</p>
+                  </div>
+                  <p className="shrink-0 font-mono text-xs font-black text-sky-400">{formatARS(item.valuation)}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-primary/80">
+              Disponible potencial
+            </p>
+            <p className={cn(
+              "mt-1 font-mono text-sm font-black",
+              hasPotential ? "text-primary" : "text-muted-foreground",
+            )}>
+              {hasPotential ? formatARSCompact(available) : "Sin capital disponible"}
+            </p>
+            <p className="mt-1 text-[10px] font-bold text-muted-foreground">
+              {releasable > 0
+                ? "liquidez informada + capital liberable"
+                : "solo se muestra si la fuente o señales lo justifican"}
+            </p>
+          </div>
+        </div>
+      </SectionPanel>
+    </motion.div>
+  )
+}
+
 function ReallocationPanel({ data }: { data: ReallocationSuggestion | null }) {
   if (!data) return null
 
@@ -930,6 +1020,7 @@ export function DashboardView() {
         <div className="space-y-6">
           <AllocationDonut data={allocationData} />
           <MarketWidget />
+          <LiquidityPanel portfolio={data} reallocation={reallocation} />
           <ReallocationPanel data={reallocation} />
         </div>
       </div>

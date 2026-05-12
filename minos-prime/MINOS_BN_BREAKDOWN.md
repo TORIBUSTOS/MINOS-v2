@@ -447,9 +447,9 @@ Documento de ejecucion: `minos-prime/SPRINT_3_LIVE_MARKET_LAYER.md`
 
 ---
 
-## SPRINT 4 — MEMORY & VALIDATION LAYER 🟡
+## SPRINT 4 — MEMORY & VALIDATION LAYER ✅
 
-**Estado:** EN PROGRESO
+**Estado:** COMPLETO
 
 **Objetivo:** Convertir MINOS de una terminal de snapshot/live session en una terminal con memoria operativa: validar antes de guardar, recordar fotos patrimoniales y explicar que cambio desde la ultima carga.
 
@@ -462,6 +462,6 @@ Documento de ejecucion: `minos-prime/SPRINT_4_MEMORY_VALIDATION_LAYER.md`
 | BN-S4-03 | Portfolio Snapshots | ✅ |
 | BN-S4-04 | Change Detection | ✅ |
 | BN-S4-05 | Pending Decisions Panel | ✅ |
-| BN-S4-06 | Liquidity Minimal Layer | ⏳ |
+| BN-S4-06 | Liquidity Minimal Layer | ✅ |
 
-**Resultado esperado:** MINOS debe poder mostrar que detecto antes de guardar una carga, confirmar persistencia de forma explicita, guardar snapshots patrimoniales, comparar contra el snapshot anterior y mostrar decisiones pendientes sin inventar datos.
+**Resultado:** Sprint 4 completo. MINOS valida antes de guardar, confirma persistencia de forma explicita, guarda snapshots patrimoniales, compara contra el snapshot anterior, muestra decisiones pendientes sin ruido y expone liquidez minima solo cuando la fuente la informa.
