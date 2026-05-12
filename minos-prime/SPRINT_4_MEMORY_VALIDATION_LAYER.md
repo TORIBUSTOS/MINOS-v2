@@ -255,6 +255,7 @@ summary
 **Tipo:** Frontend / decision surface
 **Depende de:** BN-S4-04
 **Archivos esperados:** dashboard, hooks, tipos frontend.
+**Estado:** IMPLEMENTADO
 
 ### Objetivo
 
@@ -279,10 +280,18 @@ Mostrar en Dashboard una lista corta de decisiones pendientes basadas en cambios
 
 ### Criterio de aceptacion
 
-- No duplica el banner de riesgo.
-- No inventa decisiones si faltan datos.
-- Explica por que algo esta pendiente.
-- Funciona con cartera vacia o datos parciales.
+- [x] No duplica el banner de riesgo.
+- [x] No inventa decisiones si faltan datos.
+- [x] Explica por que algo esta pendiente.
+- [x] Funciona con cartera vacia o datos parciales.
+
+### Implementado
+
+- Tipos frontend para diff patrimonial en `frontend/client/types/minos.ts`.
+- Cliente y hook para `GET /api/v1/portfolio/snapshots/diff/latest`.
+- Panel `Decisiones pendientes` en Dashboard con maximo 7 items.
+- Priorizacion desde diff patrimonial, calidad de valuacion, frescura `STALE/UNAVAILABLE`, reallocation y senales accionables.
+- El panel queda oculto si no hay pendientes reales o si todavia no existen dos snapshots.
 
 ---
 

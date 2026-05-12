@@ -3,6 +3,7 @@
 import React from "react"
 import { motion } from "motion/react"
 import {
+  AlertTriangle,
   Building2,
   BarChart2,
   PieChart,
@@ -18,8 +19,22 @@ import {
 } from "./dashboard-ui"
 import { AllocationDonut } from "./allocation-donut"
 import { MarketWidget } from "./market-widget"
-import { usePortfolioSummary, usePortfolioStatus } from "@/hooks/use-minos"
-import type { ConsolidatedPortfolio, PortfolioStatusValue } from "@/types/minos"
+import {
+  useLatestPortfolioSnapshotDiff,
+  usePortfolioSummary,
+  usePortfolioStatus,
+  useReallocation,
+  useSignals,
+} from "@/hooks/use-minos"
+import type {
+  ConsolidatedPortfolio,
+  PortfolioSnapshotDiff,
+  PortfolioStatus,
+  PortfolioStatusValue,
+  ReallocationSuggestion,
+  SnapshotChange,
+  TickerSignal,
+} from "@/types/minos"
 import { formatARS, formatARSCompact, formatPct, formatPctAlloc, formatPriceTime } from "@/lib/minos-formatters"
 import { cn } from "@/lib/utils"
 import {
@@ -33,7 +48,6 @@ import {
   Cell
 } from "recharts"
 import { ShieldAlert, TrendingUp, Minus, ArrowRightLeft, DollarSign as DollarCircle, Lightbulb } from "lucide-react"
-import { useReallocation } from "@/hooks/use-minos"
 
 type DashboardKpiId =
   | "total_pnl"
@@ -230,8 +244,7 @@ const STATUS_CONFIG: Record<PortfolioStatusValue, {
   },
 }
 
-function IntelligenceBanner() {
-  const { data: status } = usePortfolioStatus()
+function IntelligenceBanner({ status }: { status: PortfolioStatus | null }) {
   if (!status) return null
 
   const cfg = STATUS_CONFIG[status.status]
@@ -268,6 +281,245 @@ function IntelligenceBanner() {
         <span className="text-emerald-400">{status.buy_count} BUY</span>
       </div>
     </motion.div>
+  )
+}
+
+type PendingDecisionSeverity = "ACTION" | "WARN" | "INFO"
+
+type PendingDecision = {
+  id: string
+  title: string
+  reason: string
+  action: string
+  severity: PendingDecisionSeverity
+  source: string
+}
+
+const DECISION_LIMIT = 7
+const BLOCKING_VALUATION_STATUSES = new Set(["NO_DYNAMIC_QUOTE", "PRICING_ERROR", "UNAVAILABLE", "ERROR"])
+
+function formatQuantity(value: unknown): string {
+  const numeric = typeof value === "number" ? value : Number(value)
+  if (!Number.isFinite(numeric)) return "-"
+  return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 4 }).format(numeric)
+}
+
+function changePctText(change: SnapshotChange): string {
+  if (typeof change.pct_change !== "number") return ""
+  return ` (${formatPct(change.pct_change)})`
+}
+
+function addDecision(items: PendingDecision[], item: PendingDecision) {
+  if (items.some((existing) => existing.id === item.id)) return
+  items.push(item)
+}
+
+function buildPendingDecisions(
+  portfolio: ConsolidatedPortfolio,
+  diff: PortfolioSnapshotDiff | null,
+  status: PortfolioStatus | null,
+  reallocation: ReallocationSuggestion | null,
+  signals: TickerSignal[] | null,
+): PendingDecision[] {
+  const items: PendingDecision[] = []
+
+  diff?.removed_positions.slice(0, 2).forEach((change) => {
+    addDecision(items, {
+      id: `removed-${change.ticker}`,
+      title: `Baja detectada: ${change.ticker}`,
+      reason: "Estaba en el snapshot anterior y no aparece en el actual.",
+      action: "Confirmar si fue venta real o corrección de carga.",
+      severity: "ACTION",
+      source: "Memoria patrimonial",
+    })
+  })
+
+  diff?.quantity_changes.slice(0, 3).forEach((change) => {
+    addDecision(items, {
+      id: `qty-${change.ticker}`,
+      title: `Nominales cambiaron: ${change.ticker}`,
+      reason: `${formatQuantity(change.before)} -> ${formatQuantity(change.after)} (${formatQuantity(change.delta ?? 0)})`,
+      action: "Validar contra el comprobante o extracto cargado.",
+      severity: "ACTION",
+      source: "Memoria patrimonial",
+    })
+  })
+
+  portfolio.by_asset
+    .filter((asset) => asset.valuation_status && BLOCKING_VALUATION_STATUSES.has(asset.valuation_status))
+    .slice(0, 3)
+    .forEach((asset) => {
+      addDecision(items, {
+        id: `valuation-${asset.ticker}`,
+        title: `Valuación pendiente: ${asset.ticker}`,
+        reason: `Estado ${asset.valuation_status}. La señal no debería usarse como accionable.`,
+        action: "Completar precio confiable o revisar el tipo de instrumento.",
+        severity: "WARN",
+        source: "Calidad de datos",
+      })
+    })
+
+  portfolio.by_asset
+    .filter((asset) => asset.data_freshness === "STALE" || asset.data_freshness === "UNAVAILABLE")
+    .slice(0, 3)
+    .forEach((asset) => {
+      addDecision(items, {
+        id: `freshness-${asset.ticker}`,
+        title: `Dato de mercado débil: ${asset.ticker}`,
+        reason: `Frescura ${asset.data_freshness}.`,
+        action: "Actualizar mercado o dejarlo fuera de decisiones intradiarias.",
+        severity: "WARN",
+        source: "Mercado",
+      })
+    })
+
+  reallocation?.rotations.slice(0, 2).forEach((rotation) => {
+    addDecision(items, {
+      id: `rotation-${rotation.from_ticker}-${rotation.to}`,
+      title: `Rotación sugerida: ${rotation.from_ticker}`,
+      reason: rotation.reason,
+      action: `Evaluar mover capital hacia ${rotation.to}.`,
+      severity: status?.status === "RIESGO" ? "ACTION" : "WARN",
+      source: "Reasignación",
+    })
+  })
+
+  diff?.large_moves.slice(0, 2).forEach((change) => {
+    addDecision(items, {
+      id: `large-move-${change.ticker}`,
+      title: `Movimiento de valuación: ${change.ticker}`,
+      reason: `${formatARS(Number(change.delta ?? 0))}${changePctText(change)}`,
+      action: "Revisar si responde a precio de mercado o a cambio de carga.",
+      severity: "WARN",
+      source: "Memoria patrimonial",
+    })
+  })
+
+  diff?.signal_changes.slice(0, 2).forEach((change) => {
+    addDecision(items, {
+      id: `signal-change-${change.ticker}`,
+      title: `Señal cambió: ${change.ticker}`,
+      reason: `${String(change.before)} -> ${String(change.after)}`,
+      action: "Revisar antes de ejecutar una decisión de cartera.",
+      severity: "ACTION",
+      source: "Inteligencia",
+    })
+  })
+
+  signals
+    ?.filter((signal) => signal.signal === "SELL" && signal.is_actionable !== false)
+    .slice(0, 2)
+    .forEach((signal) => {
+      addDecision(items, {
+        id: `sell-${signal.ticker}`,
+        title: `Señal SELL accionable: ${signal.ticker}`,
+        reason: signal.reason,
+        action: "Evaluar reducción o rotación; no es ejecución automática.",
+        severity: "ACTION",
+        source: "Inteligencia",
+      })
+    })
+
+  diff?.new_positions.slice(0, 2).forEach((change) => {
+    addDecision(items, {
+      id: `new-${change.ticker}`,
+      title: `Nueva posición: ${change.ticker}`,
+      reason: "Aparece en el snapshot actual y no estaba en el anterior.",
+      action: "Validar PPC, fuente y clasificación del instrumento.",
+      severity: "INFO",
+      source: "Memoria patrimonial",
+    })
+  })
+
+  return items.slice(0, DECISION_LIMIT)
+}
+
+function decisionTone(severity: PendingDecisionSeverity) {
+  if (severity === "ACTION") {
+    return {
+      border: "border-rose-500/25",
+      bg: "bg-rose-500/10",
+      text: "text-rose-300",
+      dot: "bg-rose-400",
+    }
+  }
+  if (severity === "WARN") {
+    return {
+      border: "border-amber-500/25",
+      bg: "bg-amber-500/10",
+      text: "text-amber-300",
+      dot: "bg-amber-400",
+    }
+  }
+  return {
+    border: "border-sky-500/25",
+    bg: "bg-sky-500/10",
+    text: "text-sky-300",
+    dot: "bg-sky-400",
+  }
+}
+
+function PendingDecisionsPanel({
+  portfolio,
+  diff,
+  status,
+  reallocation,
+  signals,
+}: {
+  portfolio: ConsolidatedPortfolio
+  diff: PortfolioSnapshotDiff | null
+  status: PortfolioStatus | null
+  reallocation: ReallocationSuggestion | null
+  signals: TickerSignal[] | null
+}) {
+  const decisions = React.useMemo(
+    () => buildPendingDecisions(portfolio, diff, status, reallocation, signals),
+    [portfolio, diff, status, reallocation, signals],
+  )
+
+  if (decisions.length === 0) return null
+
+  return (
+    <SectionPanel delay={0.15} className="px-4 py-4 sm:px-5">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+        <SectionHeader title="Decisiones pendientes" subtitle="Cambios y datos que requieren revisión" />
+        <span className="inline-flex h-7 w-fit items-center gap-2 rounded-md border border-border/50 bg-background/35 px-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">
+          <AlertTriangle className="size-3.5" />
+          {decisions.length}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        {decisions.map((decision) => {
+          const tone = decisionTone(decision.severity)
+          return (
+            <div
+              key={decision.id}
+              className={cn(
+                "grid gap-2 rounded-lg border px-3 py-2.5 sm:grid-cols-[120px_minmax(0,1fr)_minmax(180px,0.7fr)] sm:items-center",
+                tone.border,
+                tone.bg,
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <span className={cn("size-2 rounded-full", tone.dot)} />
+                <span className={cn("text-[10px] font-black uppercase tracking-[0.12em]", tone.text)}>
+                  {decision.severity}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-xs font-black text-foreground">{decision.title}</p>
+                <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-muted-foreground">{decision.reason}</p>
+              </div>
+              <div className="min-w-0">
+                <p className="line-clamp-2 text-[11px] font-semibold leading-relaxed text-foreground/75">{decision.action}</p>
+                <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-muted-foreground/70">{decision.source}</p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </SectionPanel>
   )
 }
 
@@ -373,8 +625,7 @@ function CapitalOverviewPanel({ data }: { data: ConsolidatedPortfolio }) {
 
 // ── Reallocation Panel ────────────────────────────────────────────────────────
 
-function ReallocationPanel() {
-  const { data } = useReallocation()
+function ReallocationPanel({ data }: { data: ReallocationSuggestion | null }) {
   if (!data) return null
 
   const hasRotations = data.rotations.length > 0
@@ -500,6 +751,10 @@ function LiveSessionPanel({ data }: { data: ConsolidatedPortfolio }) {
 
 export function DashboardView() {
   const { data, loading, error, refetch } = usePortfolioSummary()
+  const { data: status } = usePortfolioStatus()
+  const { data: reallocation } = useReallocation()
+  const { data: signals } = useSignals()
+  const { data: diff } = useLatestPortfolioSnapshotDiff()
 
   if (loading && !data) return <LoadingState />
   if (error) return <ErrorState error={error} refetch={refetch} />
@@ -525,7 +780,15 @@ export function DashboardView() {
       <CapitalOverviewPanel data={data} />
 
       {/* Intelligence Status Banner */}
-      <IntelligenceBanner />
+      <IntelligenceBanner status={status} />
+
+      <PendingDecisionsPanel
+        portfolio={data}
+        diff={diff}
+        status={status}
+        reallocation={reallocation}
+        signals={signals}
+      />
 
       <LiveSessionPanel data={data} />
 
@@ -667,7 +930,7 @@ export function DashboardView() {
         <div className="space-y-6">
           <AllocationDonut data={allocationData} />
           <MarketWidget />
-          <ReallocationPanel />
+          <ReallocationPanel data={reallocation} />
         </div>
       </div>
     </div>

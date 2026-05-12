@@ -285,6 +285,63 @@ export interface ReallocationSuggestion {
   suggested_action: string
 }
 
+// ── Portfolio snapshots / change detection ──────────────────────────────────
+
+export type SnapshotChangeSeverity = "INFO" | "WARN" | "ACTION"
+
+export interface PortfolioSnapshot {
+  id: number
+  snapshot_id: string
+  created_at: string
+  trigger: string
+  total_valuation: number
+  by_asset: AssetSummary[]
+  by_source: SourceSummary[]
+  by_currency: CurrencySummary[]
+  live_market?: LiveMarketSummary | null
+  source_load_record_id?: number | null
+  notes: string[]
+  warnings: string[]
+}
+
+export interface SnapshotChange {
+  ticker: string
+  change_type: string
+  severity: SnapshotChangeSeverity
+  before: unknown
+  after: unknown
+  reason: string
+  delta?: number
+  pct_change?: number | null
+}
+
+export interface PortfolioSnapshotDiffSummary {
+  from_snapshot_id: string
+  to_snapshot_id: string
+  from_created_at: string
+  to_created_at: string
+  total_valuation_before: number
+  total_valuation_after: number
+  total_valuation_delta: number
+  total_valuation_pct_change: number | null
+  change_count: number
+  severity_counts: Record<SnapshotChangeSeverity, number>
+  has_changes: boolean
+}
+
+export interface PortfolioSnapshotDiff {
+  from_snapshot: PortfolioSnapshot
+  to_snapshot: PortfolioSnapshot
+  new_positions: SnapshotChange[]
+  removed_positions: SnapshotChange[]
+  quantity_changes: SnapshotChange[]
+  valuation_changes: SnapshotChange[]
+  signal_changes: SnapshotChange[]
+  freshness_changes: SnapshotChange[]
+  large_moves: SnapshotChange[]
+  summary: PortfolioSnapshotDiffSummary
+}
+
 // ── Admin ────────────────────────────────────────────────────────────────────
 
 export interface ResetUploadedDataResponse {
@@ -318,4 +375,5 @@ export const MINOS_ENDPOINTS = {
   signals:           "GET    /api/v1/intelligence/signals",
   portfolioStatus:   "GET    /api/v1/intelligence/portfolio-status",
   reallocation:      "GET    /api/v1/intelligence/reallocation",
+  snapshotDiffLatest: "GET   /api/v1/portfolio/snapshots/diff/latest",
 } as const

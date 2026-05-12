@@ -24,6 +24,7 @@ import type {
   AllPricesResponse,
   TickerSignal,
   PortfolioStatus,
+  PortfolioSnapshotDiff,
   ReallocationSuggestion,
   ResetUploadedDataResponse,
 } from "@/types/minos"
@@ -114,6 +115,16 @@ export function usePortfolioByCurrency() {
 export function usePortfolios() {
   return useMinosQuery<Portfolio[]>(
     () => MinosAPI.listPortfolios()
+  )
+}
+
+/**
+ * Latest portfolio memory diff. Returns null until at least two snapshots exist.
+ * Powers the Pending Decisions panel without fabricating work.
+ */
+export function useLatestPortfolioSnapshotDiff() {
+  return useMinosQuery<PortfolioSnapshotDiff | null>(
+    () => MinosAPI.getLatestPortfolioSnapshotDiff()
   )
 }
 
