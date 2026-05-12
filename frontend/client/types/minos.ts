@@ -124,6 +124,8 @@ export interface AssetSummary {
   ticker: string
   asset_type?: string
   underlying?: string | null
+  is_liquidity?: boolean
+  liquidity_kind?: string | null
   valuation: number
   market_value?: number
   cost_basis?: number
@@ -192,6 +194,7 @@ export interface ConsolidatedPortfolio {
   by_source: SourceSummary[]
   by_currency: CurrencySummary[]
   live_market?: LiveMarketSummary
+  liquidity_summary?: LiquiditySummary
 }
 
 export interface LiveMarketSummary {
@@ -203,6 +206,32 @@ export interface LiveMarketSummary {
   unavailable_count: number
   freshness_summary: Record<string, number>
   last_market_time: string | null
+}
+
+export interface LiquidityItem {
+  ticker: string
+  asset_type: string
+  liquidity_kind: string
+  valuation: number
+  pct: number
+  currencies: Currency[] | string[]
+  sources: string[]
+}
+
+export interface LiquidityCurrencySummary {
+  currency: Currency | string
+  valuation: number
+  pct: number
+}
+
+export interface LiquiditySummary {
+  is_informed: boolean
+  total: number
+  pct: number
+  by_currency: LiquidityCurrencySummary[]
+  items: LiquidityItem[]
+  available_after_reallocation: number | null
+  status: "INFORMED" | "NOT_INFORMED" | string
 }
 
 // ── Unified Ticker Layer (BN-006) ─────────────────────────────────────────────
@@ -279,6 +308,8 @@ export interface Rotation {
 
 export interface ReallocationSuggestion {
   releasable_capital: number
+  informed_liquidity?: number | null
+  available_capital?: number
   liquidity_level: LiquidityLevel
   opportunities: ReallocationOpportunity[]
   rotations: Rotation[]

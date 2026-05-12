@@ -38,6 +38,8 @@ class Rotation(BaseModel):
 
 class ReallocationSuggestion(BaseModel):
     releasable_capital: float
+    informed_liquidity: float | None = None
+    available_capital: float = 0.0
     liquidity_level: str
     opportunities: list[ReallocationOpportunity]
     rotations: list[Rotation]

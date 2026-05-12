@@ -35,10 +35,18 @@ class ReallocationEngine:
         """
         by_asset = portfolio_data.get("by_asset", [])
         total    = portfolio_data.get("total_valuation", 0.0)
+        liquidity_summary = portfolio_data.get("liquidity_summary") or {}
+        informed_liquidity = (
+            float(liquidity_summary.get("total", 0.0))
+            if liquidity_summary.get("is_informed")
+            else 0.0
+        )
 
         if not by_asset or total == 0:
             return {
                 "releasable_capital": 0.0,
+                "informed_liquidity": None,
+                "available_capital": 0.0,
                 "liquidity_level": "BAJA",
                 "opportunities": [],
                 "rotations": [],
@@ -48,17 +56,28 @@ class ReallocationEngine:
         signals      = self._intel.evaluate_tickers(portfolio_data)
         signal_map   = {s["ticker"]: s for s in signals}
 
-        sell_assets  = [a for a in by_asset if signal_map.get(a["ticker"], {}).get("signal") == "SELL"]
-        buy_assets   = [a for a in by_asset if signal_map.get(a["ticker"], {}).get("signal") == "BUY"]
+        sell_assets  = [
+            a for a in by_asset
+            if not a.get("is_liquidity")
+            and signal_map.get(a["ticker"], {}).get("signal") == "SELL"
+        ]
+        buy_assets   = [
+            a for a in by_asset
+            if not a.get("is_liquidity")
+            and signal_map.get(a["ticker"], {}).get("signal") == "BUY"
+        ]
 
         releasable   = sum(a["valuation"] for a in sell_assets)
-        liquidity    = self._compute_liquidity(releasable, total)
+        available    = releasable + informed_liquidity
+        liquidity    = self._compute_liquidity(available, total)
         opportunities = self._build_opportunities(buy_assets)
         rotations    = self._build_rotations(sell_assets, buy_assets, releasable)
         action       = self._build_action(sell_assets, buy_assets, rotations, releasable)
 
         return {
             "releasable_capital": releasable,
+            "informed_liquidity": informed_liquidity if liquidity_summary.get("is_informed") else None,
+            "available_capital": available,
             "liquidity_level": liquidity,
             "opportunities": opportunities,
             "rotations": rotations,

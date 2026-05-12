@@ -300,6 +300,7 @@ Mostrar en Dashboard una lista corta de decisiones pendientes basadas en cambios
 **Tipo:** Backend + Frontend / liquidity
 **Depende de:** BN-S4-05
 **Archivos esperados:** normalizacion/portfolio engine si aplica, dashboard/instruments si aplica, tests.
+**Estado:** IMPLEMENTADO
 
 ### Objetivo
 
@@ -320,9 +321,18 @@ Mostrar caja, fondos money market o capital disponible cuando exista dato inform
 
 ### Criterio de aceptacion
 
-- Liquidez visible solo cuando hay dato.
-- Estado claro cuando no esta informada.
-- Tests cubren cartera con caja y cartera sin caja.
+- [x] Liquidez visible solo cuando hay dato.
+- [x] Estado claro cuando no esta informada.
+- [x] Tests cubren cartera con caja y cartera sin caja.
+
+### Implementado
+
+- `portfolio/summary` expone `liquidity_summary` con `is_informed`, `total`, `%`, desglose por moneda e items.
+- Deteccion conservadora de liquidez: `CASH`, `LIQUIDITY`, `MONEY_MARKET` o fondos `FUND` identificables como money market/liquidez.
+- `by_asset` marca `is_liquidity` y `liquidity_kind` para no confundir caja con instrumentos operativos.
+- Reallocation expone `informed_liquidity` y `available_capital`; excluye activos de liquidez como origen/destino de rotaciones.
+- Dashboard agrega panel `Liquidez`, con estado `No informado` cuando la fuente no provee dato confiable.
+- Tests en `tests/test_liquidity_layer.py`.
 
 ---
 

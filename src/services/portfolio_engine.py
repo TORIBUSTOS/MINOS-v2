@@ -21,6 +21,8 @@ TRACE_PCT_QUANT = Decimal("0.01")
 SUPPORTED_DYNAMIC_ASSET_TYPES = {"EQUITY", "CEDEAR"}
 VALUATION_STATUS_NO_DYNAMIC_QUOTE = "NO_DYNAMIC_QUOTE"
 FRESHNESS_UNAVAILABLE = "UNAVAILABLE"
+MONEY_MARKET_KEYWORDS = ("MONEY", "MARKET", "LIQ", "LIQUIDEZ", "MM")
+CASH_KEYWORDS = ("CASH", "CAJA", "EFECTIVO", "DISPONIBLE", "SALDO")
 
 
 def _empty_live_market() -> dict:
@@ -33,6 +35,18 @@ def _empty_live_market() -> dict:
         "unavailable_count": 0,
         "freshness_summary": {},
         "last_market_time": None,
+    }
+
+
+def _empty_liquidity_summary() -> dict:
+    return {
+        "is_informed": False,
+        "total": 0.0,
+        "pct": 0.0,
+        "by_currency": [],
+        "items": [],
+        "available_after_reallocation": None,
+        "status": "NOT_INFORMED",
     }
 
 
@@ -175,6 +189,25 @@ def _latest_iso(values: list[str | None]) -> str | None:
     return latest_raw
 
 
+def _liquidity_kind(pos: Position, asset_type: str) -> str | None:
+    normalized_type = (asset_type or "unknown").strip().upper()
+    ticker = (pos.ticker or "").strip().upper()
+    asset_name = (pos.asset.name if pos.asset else "") or ""
+    label = f"{ticker} {asset_name}".upper()
+
+    if normalized_type in {"CASH", "LIQUIDITY"}:
+        return "CASH"
+    if normalized_type in {"MONEY_MARKET", "MONEYMARKET"}:
+        return "MONEY_MARKET"
+    if normalized_type == "FUND" and any(keyword in label for keyword in MONEY_MARKET_KEYWORDS):
+        return "MONEY_MARKET"
+    if normalized_type in {"UNKNOWN", ""} and (
+        ticker in {"ARS", "USD", "USDC", "USDT"} or any(keyword in label for keyword in CASH_KEYWORDS)
+    ):
+        return "CASH"
+    return None
+
+
 def _position_valuation(pos: Position) -> dict:
     quantity = _decimal(pos.quantity)
     cost_basis = _decimal(pos.cost_basis if pos.cost_basis is not None else pos.valuation)
@@ -243,6 +276,7 @@ def consolidate(db: Session) -> dict:
             "by_source": [],
             "by_currency": [],
             "live_market": _empty_live_market(),
+            "liquidity_summary": _empty_liquidity_summary(),
         }
 
     valued_rows = [
@@ -260,7 +294,10 @@ def consolidate(db: Session) -> dict:
     asset_traces: dict[str, list[dict]] = defaultdict(list)
     asset_types: dict[str, str] = {}
     asset_underlyings: dict[str, str | None] = {}
-    for pos, port, _, valuation in valued_rows:
+    asset_liquidity_kinds: dict[str, str | None] = {}
+    asset_currencies: dict[str, set] = defaultdict(set)
+    asset_sources: dict[str, set] = defaultdict(set)
+    for pos, port, src, valuation in valued_rows:
         asset_type = infer_asset_type(pos.ticker, pos.asset.asset_type if pos.asset else None)
         asset_val[pos.ticker] += valuation["market_value"]
         asset_cost[pos.ticker] += valuation["cost_basis"]
@@ -269,6 +306,9 @@ def consolidate(db: Session) -> dict:
         asset_traces[pos.ticker].append(valuation["trace"])
         asset_types[pos.ticker] = asset_type
         asset_underlyings[pos.ticker] = cedear_underlying(pos.ticker) if asset_type == "CEDEAR" else None
+        asset_liquidity_kinds[pos.ticker] = _liquidity_kind(pos, asset_type)
+        asset_currencies[pos.ticker].add(pos.currency)
+        asset_sources[pos.ticker].add(src.name)
 
     by_asset = [
         {
@@ -293,6 +333,8 @@ def consolidate(db: Session) -> dict:
             "data_freshness": _first_trace_value(asset_traces[ticker], "data_freshness") or FRESHNESS_UNAVAILABLE,
             "market_state": _first_trace_value(asset_traces[ticker], "market_state") or FRESHNESS_UNAVAILABLE,
             "last_market_time": _latest_iso([trace.get("last_market_time") or trace.get("timestamp") for trace in asset_traces[ticker]]),
+            "is_liquidity": asset_liquidity_kinds.get(ticker) is not None,
+            "liquidity_kind": asset_liquidity_kinds.get(ticker),
             "valuation_trace": asset_traces[ticker][0],
             "valuation_traces": asset_traces[ticker],
         }
@@ -360,10 +402,50 @@ def consolidate(db: Session) -> dict:
         ]),
     }
 
+    liquidity_items = [
+        {
+            "ticker": ticker,
+            "asset_type": asset_types.get(ticker, "unknown"),
+            "liquidity_kind": asset_liquidity_kinds[ticker],
+            "valuation": _to_float(asset_val[ticker]),
+            "pct": _pct(asset_val[ticker], total),
+            "currencies": sorted(asset_currencies[ticker]),
+            "sources": sorted(asset_sources[ticker]),
+        }
+        for ticker in sorted(asset_val, key=lambda key: -asset_val[key])
+        if asset_liquidity_kinds.get(ticker) is not None
+    ]
+    liquidity_total = sum(
+        (_decimal(item["valuation"]) for item in liquidity_items),
+        Decimal("0"),
+    )
+    liquidity_currency_val: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    for pos, _, _, valuation in valued_rows:
+        asset_type = infer_asset_type(pos.ticker, pos.asset.asset_type if pos.asset else None)
+        if _liquidity_kind(pos, asset_type) is not None:
+            liquidity_currency_val[pos.currency] += valuation["market_value"]
+    liquidity_summary = (
+        {
+            "is_informed": True,
+            "total": _to_float(liquidity_total),
+            "pct": _pct(liquidity_total, total),
+            "by_currency": [
+                {"currency": cur, "valuation": _to_float(val), "pct": _pct(val, liquidity_total)}
+                for cur, val in sorted(liquidity_currency_val.items(), key=lambda x: -x[1])
+            ],
+            "items": liquidity_items,
+            "available_after_reallocation": None,
+            "status": "INFORMED",
+        }
+        if liquidity_items
+        else _empty_liquidity_summary()
+    )
+
     return {
         "total_valuation": _to_float(total),
         "by_asset": by_asset,
         "by_source": by_source,
         "by_currency": by_currency,
         "live_market": live_market,
+        "liquidity_summary": liquidity_summary,
     }
