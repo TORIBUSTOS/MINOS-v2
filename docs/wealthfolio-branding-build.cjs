@@ -46,7 +46,7 @@ if(!html.includes('<title>Wealthfolio</title>'))throw Error('Unexpected upstream
 html=html.replace('<title>Wealthfolio</title>','<title>'+brandName+'</title>');
 html=html.replace('</head>','<link rel="stylesheet" href="/minos-login-v5.css"></head>').replace('type="image/png" href="/app-icon-192.png"','type="image/svg+xml" href="/minos-symbol-v5.svg"');
 for(const [oldRef,newRef] of map)html=html.replaceAll(oldRef,newRef);
-html=html.replace('</head>','<link rel="stylesheet" href="/minos-ui-v4.css"><link rel="stylesheet" href="/minos-theme-v5.css"></head>');
+html=html.replace('</head>','<link rel="stylesheet" href="/minos-ui-v4.css"><link rel="stylesheet" href="/minos-theme-v6.css"></head>');
 fs.writeFileSync(path.join(target,'index.html'),html);
 const cssSource=path.join(__dirname,'login.css');
 fs.copyFileSync(cssSource,path.join(target,'minos-login-v5.css'));
