@@ -34,7 +34,11 @@
     "settings-nav-width": "clamp(180px, 16vw, 240px)",
     "line-height-heading": "1.25",
     "settings-max-width": "100rem",
-    "touch-target": "44px"
+    "touch-target": "44px",
+    "brand-name-size": "1.5rem",
+    "brand-name-tracking": "-0.025em",
+    "skin-select-width": "15rem",
+    "surface-outline-style": "solid"
   },
   "themes": {
     "light": {
@@ -100,6 +104,168 @@
         "selection-bg": "#A5D0CA",
         "selection-text": "#102329"
       }
+    }
+  },
+  "defaultSkin": "purple",
+  "skins": {
+    "purple": {
+      "label": "Púrpura TORO",
+      "tokens": {
+        "font-family-ui": "\"Inter Variable\", Arial, sans-serif",
+        "font-family-display": "\"Inter Variable\", Arial, sans-serif",
+        "radius-sm": "12px",
+        "radius-md": "16px",
+        "brand-name-size": "1.75rem",
+        "brand-name-tracking": "-0.025em",
+        "surface-outline-style": "solid"
+      },
+      "modes": {
+        "light": {
+          "bg-base": "#F4F0FA",
+          "bg-section": "#E9E0F3",
+          "bg-surface": "#FFFCFF",
+          "bg-surface-raised": "#FFFFFF",
+          "bg-hover": "#E4D7F3",
+          "text-main": "#26143D",
+          "text-muted": "#625071",
+          "primary-action": "#603497",
+          "primary-action-hover": "#482373",
+          "text-on-action": "#FFFFFF",
+          "border-subtle": "#D7C6E6",
+          "border-strong": "#8D729F",
+          "focus-ring": "#603497",
+          "brand-detail": "#8D57C9",
+          "selection-bg": "#603497",
+          "selection-text": "#FFFFFF"
+        },
+        "dark": {
+          "bg-base": "#100B1C",
+          "bg-section": "#1A122C",
+          "bg-surface": "#211735",
+          "bg-surface-raised": "#2D2045",
+          "bg-hover": "#392750",
+          "text-main": "#F6F0FF",
+          "text-muted": "#C2B3D7",
+          "primary-action": "#C7A0FF",
+          "primary-action-hover": "#DFC6FF",
+          "text-on-action": "#211032",
+          "border-subtle": "#49365E",
+          "border-strong": "#816597",
+          "focus-ring": "#D7B7FF",
+          "brand-detail": "#B79AEE",
+          "selection-bg": "#C7A0FF",
+          "selection-text": "#211032"
+        }
+      },
+      "enabled": true
+    },
+    "darkside": {
+      "label": "Lado oscuro",
+      "tokens": {
+        "font-family-ui": "\"Inter Variable\", Arial, sans-serif",
+        "font-family-display": "\"Inter Variable\", Arial, sans-serif",
+        "radius-sm": "4px",
+        "radius-md": "12px",
+        "brand-name-size": "1.75rem",
+        "brand-name-tracking": "0.04em",
+        "surface-outline-style": "solid"
+      },
+      "modes": {
+        "light": {
+          "bg-base": "#F4F0F1",
+          "bg-section": "#E9E1E3",
+          "bg-surface": "#FFFBFC",
+          "bg-surface-raised": "#FFFFFF",
+          "bg-hover": "#EAD7DC",
+          "text-main": "#29131B",
+          "text-muted": "#70505C",
+          "primary-action": "#982B3C",
+          "primary-action-hover": "#752033",
+          "text-on-action": "#FFFFFF",
+          "border-subtle": "#D8C5CB",
+          "border-strong": "#9B7581",
+          "focus-ring": "#982B3C",
+          "brand-detail": "#AE344E",
+          "selection-bg": "#982B3C",
+          "selection-text": "#FFFFFF"
+        },
+        "dark": {
+          "bg-base": "#101013",
+          "bg-section": "#19191F",
+          "bg-surface": "#23232A",
+          "bg-surface-raised": "#303039",
+          "bg-hover": "#3A2830",
+          "text-main": "#F6EFF1",
+          "text-muted": "#C8B6BC",
+          "primary-action": "#FF929D",
+          "primary-action-hover": "#FFBAC1",
+          "text-on-action": "#330A12",
+          "border-subtle": "#494047",
+          "border-strong": "#937A84",
+          "focus-ring": "#FF929D",
+          "brand-detail": "#EA6173",
+          "selection-bg": "#FF929D",
+          "selection-text": "#330A12"
+        }
+      },
+      "enabled": true
+    },
+    "gold": {
+      "label": "Armadura dorada",
+      "tokens": {
+        "font-family-ui": "\"Inter Variable\", Arial, sans-serif",
+        "font-family-display": "\"Merriweather\", Georgia, serif",
+        "radius-sm": "6px",
+        "radius-md": "14px",
+        "brand-name-size": "1.75rem",
+        "brand-name-tracking": "0.015em",
+        "surface-outline-style": "solid"
+      },
+      "modes": {
+        "light": {
+          "bg-base": "#F7F2E6",
+          "bg-section": "#ECE3CC",
+          "bg-surface": "#FFFDF7",
+          "bg-surface-raised": "#FFFFFF",
+          "bg-hover": "#EEE0BE",
+          "text-main": "#342811",
+          "text-muted": "#75603B",
+          "primary-action": "#785319",
+          "primary-action-hover": "#5B3C0D",
+          "text-on-action": "#FFFFFF",
+          "border-subtle": "#DCCCAB",
+          "border-strong": "#9C8250",
+          "focus-ring": "#785319",
+          "brand-detail": "#A77B25",
+          "selection-bg": "#785319",
+          "selection-text": "#FFFFFF"
+        },
+        "dark": {
+          "bg-base": "#101520",
+          "bg-section": "#182131",
+          "bg-surface": "#202D40",
+          "bg-surface-raised": "#2C3A4D",
+          "bg-hover": "#3D3A31",
+          "text-main": "#FFF5DD",
+          "text-muted": "#D4C2A0",
+          "primary-action": "#E8C677",
+          "primary-action-hover": "#FFE0A0",
+          "text-on-action": "#271D08",
+          "border-subtle": "#5D5036",
+          "border-strong": "#A08B59",
+          "focus-ring": "#E8C677",
+          "brand-detail": "#DAB661",
+          "selection-bg": "#E8C677",
+          "selection-text": "#271D08"
+        }
+      },
+      "enabled": true
+    },
+    "classic": {
+      "label": "Minos clásico",
+      "enabled": true,
+      "tokens": {},
+      "modes": {}
     }
   }
 }
