@@ -24,3 +24,11 @@ img[src="/minos-symbol-v5.svg"]{filter:var(--symbol-filter);object-fit:contain;t
 .minos-accounts .divide-y{overflow:hidden;border-radius:var(--radius-md);box-shadow:var(--shadow-raised)}
 @media(max-width:640px){.minos-account-intro{align-items:stretch;flex-direction:column;padding:var(--space-md);gap:var(--space-md)}.minos-account-meta{border-inline-start:0;border-block-start:var(--border-width) solid var(--border-strong);padding-inline-start:0;padding-block-start:var(--space-md)}}
 @media(prefers-reduced-motion:reduce){.minos-account-intro,.minos-theme-link{transition:none}}
+
+/* Settings owns the available viewport width; account content may grow with it. */
+.minos-accounts{width:100%;min-width:0;max-width:none}
+@media(min-width:1024px){
+ .settings-root > .scan-hide-target > .flex{width:100%;min-width:0;max-width:none;padding-inline:var(--settings-gutter)}
+ .settings-root > .scan-hide-target > .flex > div:last-child{gap:var(--settings-layout-gap)}
+ .settings-root aside{width:var(--settings-nav-width)}
+}
