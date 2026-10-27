@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const source = path.join(__dirname, 'upstream');
-const target = path.join(__dirname, 'dist');
+const target = path.join(__dirname, 'dist-next');
 fs.rmSync(target, {recursive:true,force:true});
 fs.cpSync(source,target,{recursive:true});
 const authFile = path.join(target,'assets/auth-DqLZ8PEK.js');
@@ -25,10 +25,11 @@ change('s.jsx(Cn,{children:"Minos Capital"})','s.jsx(Cn,{className:"minos-title"
 change('children:[s.jsx(ln,{"data-testid":"login-password-input"','children:[s.jsx("label",{htmlFor:"password",className:"minos-password-label",children:"Contraseña"}),s.jsx(ln,{"data-testid":"login-password-input"');
 change('s.jsx(cG,{className:"text-muted-foreground flex flex-col gap-2 text-center text-xs"})','s.jsx(cG,{className:"minos-attribution",children:s.jsx("a",{href:"https://wealthfolio.app",target:"_blank",rel:"noreferrer",children:"Powered by Wealthfolio"})})');
 main=main.slice(0,loginStart)+login+main.slice(loginEnd);
+main=require("./ui-modules.cjs").applyUiFlags(main,JSON.parse(fs.readFileSync(path.join(__dirname,"ui-modules.json"),"utf8"))).main;
 fs.writeFileSync(mainFile,main);
 const assets=path.join(target,'assets');
 const names=fs.readdirSync(assets).filter(n=>n.endsWith('.js'));
-const map=names.map(n=>[n,n.slice(0,-3)+'.minos-v3.js']);
+const map=names.map(n=>[n,n.slice(0,-3)+'.minos-v4.js']);
 for(const oldName of names){
  let text=fs.readFileSync(path.join(assets,oldName),'utf8');
  for(const [oldRef,newRef] of map) text=text.replaceAll(oldRef,newRef);
@@ -40,10 +41,15 @@ if(!html.includes('<title>Wealthfolio</title>'))throw Error('Unexpected upstream
 html=html.replace('<title>Wealthfolio</title>','<title>Minos Capital</title>');
 html=html.replace('</head>','<link rel="stylesheet" href="/minos-login-v3.css"></head>').replace('href="/app-icon-192.png"','href="/minos-symbol-v3.svg"');
 for(const [oldRef,newRef] of map)html=html.replaceAll(oldRef,newRef);
+html=html.replace('</head>','<link rel="stylesheet" href="/minos-ui-v4.css"></head>');
 fs.writeFileSync(path.join(target,'index.html'),html);
 const cssSource=path.join(__dirname,'login.css');
 fs.copyFileSync(cssSource,path.join(target,'minos-login-v3.css'));
 fs.copyFileSync(path.join(__dirname,'assets/symbol.svg'),path.join(target,'minos-symbol-v3.svg'));
+const flagsForCss=JSON.parse(fs.readFileSync(path.join(__dirname,'ui-modules.json'),'utf8'));let navCss='';if(!flagsForCss.connect)navCss+='a[href="/connect"],a[href="/settings/connect"]{display:none!important}';fs.writeFileSync(path.join(target,'minos-ui-v4.css'),navCss);
 const manifestPath=path.join(target,'manifest.json');
 if(fs.existsSync(manifestPath)){const m=JSON.parse(fs.readFileSync(manifestPath,'utf8'));m.name='Minos Capital';m.short_name='Minos';fs.writeFileSync(manifestPath,JSON.stringify(m,null,2));}
+const live=path.join(__dirname,'dist');fs.mkdirSync(live,{recursive:true});
+for(const name of fs.readdirSync(target)){if(name==='index.html')continue;fs.cpSync(path.join(target,name),path.join(live,name),{recursive:true});}
+fs.copyFileSync(path.join(target,'index.html'),path.join(live,'index.html'));fs.rmSync(target,{recursive:true,force:true});
 console.log('Branding built; JS cache refreshed: '+names.length+' chunks.');
