@@ -1,0 +1,23 @@
+/* MINOS login theme: tokens from Drive brand v0.1, scoped to login. */
+.minos-login{
+ --minos-bg:#F4F2EC;--minos-ink:#172B32;--minos-accent:#24545B;--minos-hover:#172B32;--minos-sand:#C7B58A;--minos-muted:#52656A;--minos-line:#D5DAD7;--minos-surface:#FFFFFF;
+ --minos-font:Arial,Helvetica,sans-serif;--minos-radius:10px;--minos-width:420px;--minos-space:24px;--minos-control:52px;
+ background:var(--minos-bg)!important;color:var(--minos-ink)!important;font-family:var(--minos-font)!important;overflow-y:auto;padding:var(--minos-space)!important;
+}
+.minos-login>div{max-width:var(--minos-width);width:100%;transform:none!important;margin:auto}
+.minos-login [data-slot="card"],.minos-login .bg-transparent{color:var(--minos-ink)}
+.minos-login .minos-logo{width:88px;height:88px;margin:0 auto 8px;object-fit:contain}
+.minos-login .minos-title{font-family:var(--minos-font);font-size:32px;font-weight:600;letter-spacing:-.8px;line-height:1.2;color:var(--minos-ink)}
+.minos-login [data-slot="card-description"]{font-family:var(--minos-font);color:var(--minos-muted);font-size:15px}
+.minos-login form{margin-top:var(--minos-space)}
+.minos-password-label{display:block;font-size:13px;font-weight:600;color:var(--minos-ink);margin-bottom:8px;text-align:left}
+.minos-login input{height:var(--minos-control)!important;background:var(--minos-surface)!important;color:var(--minos-ink)!important;border:1px solid var(--minos-line)!important;border-radius:var(--minos-radius)!important;font-family:var(--minos-font);padding:0 16px;font-size:16px;box-shadow:none!important}
+.minos-login input::placeholder{color:var(--minos-muted)}
+.minos-login input:focus-visible,.minos-login button:focus-visible{outline:3px solid var(--minos-sand)!important;outline-offset:3px}
+.minos-login button[type="submit"]{height:var(--minos-control);background:var(--minos-accent)!important;color:var(--minos-surface)!important;border-radius:var(--minos-radius);font-family:var(--minos-font);font-size:15px;font-weight:600;letter-spacing:.2px;border:0}
+.minos-login button[type="submit"]:hover{background:var(--minos-hover)!important}
+.minos-login button:disabled{opacity:.55;cursor:wait}
+.minos-attribution{justify-content:center;text-align:center;margin-top:32px;border-top:1px solid var(--minos-line);padding-top:20px;font-family:var(--minos-font);font-size:11px;color:var(--minos-muted);letter-spacing:.3px}
+.minos-attribution a:hover{text-decoration:underline}
+@media(max-width:480px){.minos-login{padding:20px!important}.minos-login .minos-title{font-size:29px}.minos-login .minos-logo{width:76px;height:76px}}
+@media(max-height:560px){.minos-login{align-items:flex-start!important}.minos-login .minos-logo{width:56px;height:56px}.minos-attribution{margin-top:20px}}
