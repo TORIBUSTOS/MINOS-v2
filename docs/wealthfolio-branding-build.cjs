@@ -59,4 +59,3 @@ const live=path.join(__dirname,'dist');fs.mkdirSync(live,{recursive:true});
 for(const name of fs.readdirSync(target)){if(name==='index.html')continue;fs.cpSync(path.join(target,name),path.join(live,name),{recursive:true});}
 fs.copyFileSync(path.join(target,'index.html'),path.join(live,'index.html'));fs.rmSync(target,{recursive:true,force:true});
 console.log('Branding built; JS cache refreshed: '+names.length+' chunks.');
-
