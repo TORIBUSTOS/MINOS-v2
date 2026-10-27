@@ -1,4 +1,51 @@
-# MINOS PRIME
+# MINOS Capital — estado vigente
+
+Actualizado: 27/10/2026 por Rosario, por pedido de Tori.
+
+## Decisión de producto y línea de base
+
+La primera versión de MINOS Capital adopta [Wealthfolio oficial](https://github.com/wealthfolio/wealthfolio), web self-hosted AGPL-3.0. Objetivo: consultar la cartera con claridad, como reflejo patrimonial sin ejecución de órdenes.
+
+El código FastAPI/Next.js de este repositorio se conserva como antecedente. Las instrucciones y capacidades históricas que aparecen más abajo corresponden a ese desarrollo; no describen el producto actualmente desplegado.
+
+| Componente | Línea de base al 27/10/2026 |
+| --- | --- |
+| Wealthfolio | Desplegado en TORO, versión 3.11.0 con imagen fijada por digest |
+| Acceso y datos | HTTPS, autenticación y persistencia configurados |
+| n8n | Completado y verificado directamente con un flujo real |
+| Fuentes Balanz | Excel y resúmenes disponibles; corte inicial 22/10/2026 |
+| Portfolio e importación | Próxima tarea: configurar cuenta y validar carga |
+| MCP de Wealthfolio | Habilitado; lectura autenticada de cartera pendiente |
+| Respaldos | Copia inicial realizada; programación y restauración de prueba pendientes |
+| Kanboard | Fuera del alcance por decisión de Tori |
+
+### Evidencia de n8n
+
+Flujo **MINOS — comprobar acceso**, tres nodos: inicio manual → consulta HTTPS de Minos → resultado con estado y fecha.
+
+- Workflow ID: `V1Ta3qEqQ5049tNE`.
+- Ejecución `6942`: **success**.
+- Resultado observado: `httpStatus: 200`, `accesible: true`.
+- Fecha: 27/10/2026, 10:13:55 de Argentina.
+- Creación, ejecución y resultado comprobados mediante el conector oficial de n8n.
+- Ejecución manual, sin programación. La conexión de n8n queda acreditada; consultar posiciones es el siguiente trabajo de integración.
+
+### Próximo trabajo aprobado
+
+1. Configurar portfolio/cuenta en Wealthfolio y confirmar su plantilla de tenencias.
+2. Preparar el corte Balanz del 22/10/2026 y contrastarlo con los resúmenes.
+3. Validar cantidades, monedas, CEDEARs, bonos/ON, fondos y efectivo; reimportar sin duplicados.
+4. Consultar la misma cartera desde la interfaz, Crew/MCP y n8n.
+5. Completar respaldos y personalización gradual con el branding existente.
+
+La base documental y de despliegue también está versionada en Git local en TORO (commit de referencia `0ea67fc`); todavía no tiene un remoto propio conectado. Este README publica la línea de base vigente en GitHub sin incluir archivos financieros, credenciales ni configuración privada.
+
+Génesis sirve para registrar dónde estamos y medir avances. Kanboard no es condición para avanzar. La v0 completa se cerrará con la cartera validada y sus consultas funcionando.
+
+---
+
+## Antecedente técnico: MINOS PRIME
+
 
 > Sistema operativo patrimonial e inteligencia financiera de TORO
 
