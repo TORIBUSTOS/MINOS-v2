@@ -1,0 +1,8 @@
+# Merge these labels into the existing Wealthfolio service override.
+# Preserve its branding bind mount and other existing settings.
+services:
+  wealthfolio:
+    labels:
+      traefik.http.routers.minos.middlewares: minos-spa
+      traefik.http.middlewares.minos-spa.replacepathregex.regex: "^/(settings|accounts|dashboard|net-worth|insights|holdings|import|activities|goals|assistant|connect|onboarding|health)(/.*)?$$"
+      traefik.http.middlewares.minos-spa.replacepathregex.replacement: /

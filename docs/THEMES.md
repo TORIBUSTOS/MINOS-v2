@@ -15,3 +15,6 @@ La dirección anterior del ingreso queda preservada en el historial git y en el 
 Validación 27/10/2026 por Rosario: compilación sobre upstream oficial y anclas verificadas, sintaxis JS, referencias locales, autenticación HTTP y contraste de texto/acciones de ambos temas ≥4.5:1. No hubo revisión visual interactiva en navegador de escritorio o móvil; la sesión del browser interno no está accesible desde esta ejecución. El CSS incluye adaptación móvil y foco visible; su recorrido visual queda pendiente.
 
 Las anclas de los bundles son específicas de esta versión. Una actualización que cambie componentes debe detener el build para revisar la adaptación, sin publicar un parche parcial.
+
+## Recarga de rutas internas
+Se corrigió el 404 de navegación directa con middleware Traefik minos-spa: sólo rutas de UI conocidas se sirven desde el índice; /api, /mcp y assets quedan fuera. Verificado HTTP200 en /settings/accounts y /settings/appearance, API sin sesión401, autenticación200 y tres cuentas existentes preservadas. No hay cambios a /data.
