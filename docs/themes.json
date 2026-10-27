@@ -1,0 +1,35 @@
+{
+  "default": "light",
+  "tokens": {
+    "space-xs": "4px", "space-sm": "8px", "space-md": "16px", "space-lg": "24px", "space-xl": "40px",
+    "radius-sm": "10px", "radius-md": "16px", "control-height": "44px", "content-max-width": "1120px",
+    "font-size-sm": "13px", "font-size-md": "15px", "font-size-lg": "24px", "font-size-display": "30px",
+    "font-weight-regular": "400", "font-weight-strong": "600", "line-height-body": "1.55",
+    "motion-fast": "120ms", "motion-standard": "200ms", "easing-standard": "ease-out",
+    "logo-size": "40px", "login-logo-size": "80px", "login-max-width": "420px",
+    "border-width": "1px", "focus-width": "3px", "focus-offset": "3px", "disabled-opacity": "0.55",
+    "letter-spacing-title": "-0.025em", "letter-spacing-eyebrow": "0.12em"
+  },
+  "themes": {
+    "light": {
+      "label": "Minos · Claro", "enabled": true,
+      "tokens": {
+        "bg-base": "$paper", "bg-section": "#ECEEE8", "bg-surface": "$white", "bg-surface-raised": "$white", "bg-hover": "#DFE9E5",
+        "text-main": "$ink", "text-muted": "$muted", "text-on-action": "$white", "text-on-danger": "$white",
+        "primary-action": "$petrol", "primary-action-hover": "$ink", "border-subtle": "$line", "border-strong": "#A9B9B7", "focus-ring": "$petrol",
+        "state-success": "#2E6B4D", "state-warning": "#8A5C15", "state-info": "#2D5F8A", "danger": "#B6373F", "income": "#2E6B4D", "expense": "#B6373F",
+        "brand-detail": "$sand", "symbol-filter": "none", "shadow-raised": "0 2px 8px #172B3208", "intro-bg": "#E4EBE5"
+      }
+    },
+    "dark": {
+      "label": "Minos · Oscuro", "enabled": true,
+      "tokens": {
+        "bg-base": "#111F24", "bg-section": "#172A30", "bg-surface": "#1D3239", "bg-surface-raised": "#253E46", "bg-hover": "#2D474E",
+        "text-main": "#F1F3ED", "text-muted": "#B2C4C5", "text-on-action": "#102329", "text-on-danger": "#FFFFFF",
+        "primary-action": "#A5D0CA", "primary-action-hover": "#C8E3DE", "border-subtle": "#365058", "border-strong": "#69878C", "focus-ring": "#C7B58A",
+        "state-success": "#9CD1AC", "state-warning": "#E2C382", "state-info": "#A8CEE9", "danger": "#F4989D", "income": "#9CD1AC", "expense": "#F4989D",
+        "brand-detail": "$sand", "symbol-filter": "brightness(0) invert(1)", "shadow-raised": "0 2px 12px #00000018", "intro-bg": "#243C40"
+      }
+    }
+  }
+}
