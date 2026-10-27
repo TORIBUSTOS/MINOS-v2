@@ -10,10 +10,10 @@
     "radius-md": "16px",
     "control-height": "44px",
     "content-max-width": "1120px",
-    "font-size-sm": "13px",
-    "font-size-md": "15px",
-    "font-size-lg": "24px",
-    "font-size-display": "30px",
+    "font-size-sm": ".875rem",
+    "font-size-md": "1rem",
+    "font-size-lg": "1.5rem",
+    "font-size-display": "1.875rem",
     "font-weight-regular": "400",
     "font-weight-strong": "600",
     "line-height-body": "1.55",
@@ -31,7 +31,10 @@
     "letter-spacing-eyebrow": "0.12em",
     "settings-gutter": "clamp(16px, 2vw, 40px)",
     "settings-layout-gap": "clamp(24px, 3vw, 48px)",
-    "settings-nav-width": "clamp(180px, 16vw, 240px)"
+    "settings-nav-width": "clamp(180px, 16vw, 240px)",
+    "line-height-heading": "1.25",
+    "settings-max-width": "100rem",
+    "touch-target": "44px"
   },
   "themes": {
     "light": {
@@ -60,8 +63,10 @@
         "expense": "#B6373F",
         "brand-detail": "$sand",
         "symbol-filter": "none",
-        "shadow-raised": "0 2px 8px #172B3208",
-        "intro-bg": "#E4EBE5"
+        "shadow-raised": "none",
+        "intro-bg": "#E4EBE5",
+        "selection-bg": "#24545B",
+        "selection-text": "#FFFFFF"
       }
     },
     "dark": {
@@ -90,8 +95,10 @@
         "expense": "#F4989D",
         "brand-detail": "$sand",
         "symbol-filter": "brightness(0) invert(1)",
-        "shadow-raised": "0 2px 12px #00000018",
-        "intro-bg": "#243C40"
+        "shadow-raised": "none",
+        "intro-bg": "#243C40",
+        "selection-bg": "#A5D0CA",
+        "selection-text": "#102329"
       }
     }
   }
