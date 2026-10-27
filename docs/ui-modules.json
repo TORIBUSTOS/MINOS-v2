@@ -1,0 +1,22 @@
+{
+  "cuentas": true,
+  "carteras": false,
+  "resumen": false,
+  "analisis": false,
+  "tenencias": false,
+  "importacion": false,
+  "movimientos": false,
+  "objetivos": false,
+  "asistente": false,
+  "connect": false,
+  "instrumentos": false,
+  "clasificaciones": false,
+  "mercado": false,
+  "limites": false,
+  "gastos": false,
+  "extensiones": false,
+  "preferencias": true,
+  "respaldos": true,
+  "agentes": true,
+  "creditos": true
+}
