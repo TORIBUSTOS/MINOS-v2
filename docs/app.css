@@ -1,4 +1,4 @@
-/* The same semantic tokens feed the official components, login and account intro. */
+/* Minos semantic tokens extend the official Wealthfolio component system. */
 html{font-family:var(--font-family-ui);background:var(--bg-base);color:var(--text-main)}
 body.font-sans{font-family:var(--font-family-ui)}
 body.font-serif{font-family:var(--font-family-display)}
@@ -7,28 +7,43 @@ body{background:var(--bg-base);color:var(--text-main);line-height:var(--line-hei
 [data-slot="card"]{border-color:var(--border-subtle);border-radius:var(--radius-md);background:var(--bg-surface);box-shadow:var(--shadow-raised)}
 [data-slot="card-title"]{letter-spacing:var(--letter-spacing-title)}
 button,input,select,textarea{font-family:inherit}
+input,textarea{caret-color:var(--primary-action)}
+::selection{background:var(--selection-bg);color:var(--selection-text)}
 :where(button,a,input,select,textarea):focus-visible{outline:var(--focus-width) solid var(--focus-ring);outline-offset:var(--focus-offset)}
 img[src="/minos-symbol-v5.svg"]{filter:var(--symbol-filter);object-fit:contain;transform:none!important;transition:none!important}
 .minos-brand-name{font-family:var(--font-family-display);font-size:var(--font-size-md);letter-spacing:var(--letter-spacing-title);font-weight:var(--font-weight-strong)}
-.minos-accounts{max-width:var(--content-max-width);margin-inline:auto}
-.minos-account-intro{display:flex;align-items:center;justify-content:space-between;gap:var(--space-lg);padding:var(--space-lg);background:var(--intro-bg);border:var(--border-width) solid var(--border-subtle);border-inline-start:var(--space-xs) solid var(--brand-detail);border-radius:var(--radius-md)}
-.minos-eyebrow{font-size:var(--font-size-sm);font-weight:var(--font-weight-strong);letter-spacing:var(--letter-spacing-eyebrow);color:var(--text-muted);margin-block-end:var(--space-sm)}
-.minos-account-intro h2{font-family:var(--font-family-display);font-size:var(--font-size-lg);font-weight:var(--font-weight-strong);line-height:var(--line-height-body);letter-spacing:var(--letter-spacing-title)}
-.minos-intro-copy{font-size:var(--font-size-md);color:var(--text-muted);margin-block-start:var(--space-sm);max-width:var(--login-max-width)}
-.minos-account-meta{flex-shrink:0;font-size:var(--font-size-sm);color:var(--text-muted);border-inline-start:var(--border-width) solid var(--border-strong);padding-inline-start:var(--space-lg)}
-.minos-account-meta strong{font-size:var(--font-size-lg);color:var(--text-main);font-weight:var(--font-weight-strong);font-variant-numeric:tabular-nums}
-.minos-theme-link{display:inline-block;margin-block-start:var(--space-md);color:var(--primary-action);font-weight:var(--font-weight-strong);text-underline-offset:var(--space-xs)}
+.minos-settings-identity{display:flex;align-items:center;gap:var(--space-md)}
+.minos-settings-identity img{width:var(--logo-size);height:var(--logo-size);flex-shrink:0}
+.minos-settings-identity p{font-family:var(--font-family-display);font-size:var(--font-size-sm);font-weight:var(--font-weight-strong);color:var(--text-muted)}
+.minos-settings-identity .minos-settings-label{font-size:var(--font-size-lg);font-weight:var(--font-weight-strong);letter-spacing:var(--letter-spacing-title);line-height:var(--line-height-heading)}
+.minos-accounts{width:100%;min-width:0;max-width:none;margin-inline:auto}
+.minos-account-context{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-sm) var(--space-lg);font-size:var(--font-size-sm);line-height:var(--line-height-body);color:var(--text-muted)}
+.minos-account-context p{display:flex;flex-wrap:wrap;gap:var(--space-sm)}
+.minos-account-context strong{font-weight:var(--font-weight-strong);font-variant-numeric:tabular-nums;color:var(--text-main)}
+.minos-theme-link{display:inline-flex;align-items:center;color:var(--primary-action);font-weight:var(--font-weight-strong);text-underline-offset:var(--space-xs)}
 .minos-theme-link:hover{text-decoration:underline}
 .minos-accounts [data-testid="add-account-header-button"]{background:var(--primary-action);color:var(--text-on-action)}
 .minos-accounts [data-testid="add-account-header-button"]:hover{background:var(--primary-action-hover)}
-.minos-accounts .divide-y{overflow:hidden;border-radius:var(--radius-md);box-shadow:var(--shadow-raised)}
-@media(max-width:640px){.minos-account-intro{align-items:stretch;flex-direction:column;padding:var(--space-md);gap:var(--space-md)}.minos-account-meta{border-inline-start:0;border-block-start:var(--border-width) solid var(--border-strong);padding-inline-start:0;padding-block-start:var(--space-md)}}
-@media(prefers-reduced-motion:reduce){.minos-account-intro,.minos-theme-link{transition:none}}
-
-/* Settings owns the available viewport width; account content may grow with it. */
-.minos-accounts{width:100%;min-width:0;max-width:none}
+.minos-accounts .divide-y{border-radius:var(--radius-md)}
+.minos-accounts :is(h1,h2,h3){text-wrap:balance}
+.minos-accounts :is(input,button){max-width:100%}
+.minos-accounts input[type="text"]{min-height:var(--control-height)}
+.minos-accounts :is(button,a):active:not(:disabled){transition:background-color var(--motion-fast) var(--easing-standard)}
 @media(min-width:1024px){
- .settings-root > .scan-hide-target > .flex{width:100%;min-width:0;max-width:none;padding-inline:var(--settings-gutter)}
+ .settings-root > .scan-hide-target > .flex{width:100%;min-width:0;max-width:var(--settings-max-width);margin-inline:auto;padding-inline:var(--settings-gutter)}
  .settings-root > .scan-hide-target > .flex > div:last-child{gap:var(--settings-layout-gap)}
  .settings-root aside{width:var(--settings-nav-width)}
 }
+@media(max-width:639px){.minos-account-context{align-items:flex-start;flex-direction:column}}
+@media(pointer:coarse){
+ .minos-accounts button,.minos-accounts [role="tab"]{min-height:var(--touch-target);min-width:var(--touch-target)}
+ .minos-theme-link{min-height:var(--touch-target)}
+}
+@media(prefers-reduced-motion:reduce){.minos-accounts :is(button,a):active:not(:disabled){transition:none}}
+
+.minos-account-row{gap:var(--space-md);align-items:flex-start}
+.minos-account-main > :first-child{flex-shrink:0}
+.minos-account-copy{min-width:0}
+.minos-account-copy :is(a,span){overflow-wrap:anywhere}
+.minos-account-details{row-gap:var(--space-xs)}
+.minos-account-row > :last-child{flex-shrink:0}
